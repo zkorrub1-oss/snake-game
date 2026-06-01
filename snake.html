@@ -11,10 +11,14 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    min-height: 100vh;
     font-family: 'Courier New', monospace;
     color: #e0e0e0;
+  }
+  #game-container {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    width: 100%;
   }
   h1 { font-size: 2rem; letter-spacing: 6px; margin-bottom: 12px; color: #4ecca3; text-transform: uppercase; }
   #hud {
@@ -176,9 +180,52 @@
   #tm-cancel:hover { background: #e06c75; color: #0f0f1e; }
 
   #controls { margin-top: 12px; font-size: 0.75rem; letter-spacing: 1px; color: #555577; }
+
+  /* ── Sliding puzzle ─────────────────────────────────────────────────────── */
+  #puzzle-section {
+    margin-top: 36px; margin-bottom: 40px;
+    text-align: center;
+    opacity: 0; transition: opacity 0.7s ease;
+  }
+  #puzzle-section.revealed { opacity: 1; }
+  #puzzle-wrap { position: relative; display: inline-block; }
+  #puzzle-lock {
+    display: none; position: absolute; inset: 0;
+    background: rgba(10,10,30,0.82); border-radius: 8px;
+    align-items: center; justify-content: center;
+    font-size: 0.68rem; letter-spacing: 3px; color: #444466;
+  }
+  #puzzle-lock.active { display: flex; }
+  #puzzle-label {
+    font-size: 0.7rem; letter-spacing: 4px; color: #555577;
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  #puzzle-hint {
+    font-size: 0.6rem; letter-spacing: 2px; color: #2a2a4a; margin-bottom: 14px;
+  }
+  #puzzle-grid {
+    display: inline-grid; grid-template-columns: repeat(3, 64px); gap: 4px;
+    background: #0d0d20; border: 2px solid #2a2a4a; padding: 6px; border-radius: 8px;
+  }
+  .p-tile {
+    width: 64px; height: 64px; background: #1a1a3a; border: 1px solid #3a3a5a;
+    border-radius: 5px; display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; font-weight: bold; color: #4ecca3;
+    cursor: pointer; user-select: none;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .p-tile:hover:not(.p-empty):not(.p-done) { background: #252550; border-color: #4ecca3; }
+  .p-tile.p-empty { background: #08080f; border-color: #16162a; cursor: default; }
+  .p-tile.p-done  { background: #0a2218; border-color: #4ecca370; color: #4ecca3; cursor: default; }
+  #puzzle-msg {
+    margin-top: 12px; min-height: 1.4em;
+    font-size: 0.72rem; letter-spacing: 3px; color: #555577;
+  }
+  #puzzle-msg.p-won { color: #4ecca3; }
 </style>
 </head>
 <body>
+<div id="game-container">
 <h1>Snake</h1>
 <div id="hud">
   <span>LVL <span id="lvl">1</span></span>
@@ -258,6 +305,17 @@
 </div>
 
 <div id="controls">WASD / ARROWS &nbsp;·&nbsp; SPACE = PAUSE &nbsp;·&nbsp; E = SKILL TREE</div>
+</div>
+
+<div id="puzzle-section">
+  <div id="puzzle-label">SLIDING PUZZLE</div>
+  <div id="puzzle-hint">SOLVE FOR +10 FRUITS &amp; EXP</div>
+  <div id="puzzle-wrap">
+    <div id="puzzle-grid"></div>
+    <div id="puzzle-lock">PAUSE TO PLAY</div>
+  </div>
+  <div id="puzzle-msg"></div>
+</div>
 
 <script>
 const LEVEL_THRESHOLDS = [0, 5, 12, 21, 32, 45, 60, 77, 96, 117, 140, 165, 192, 221, 252, 285, 320, 357, 396, 437]; // EXP to reach each level (20 levels)
@@ -459,6 +517,9 @@ function init() {
   testModeUsed     = false;
   skills           = { tongue: 0, expBoost: 0 };
   fruitsSpent = 0;
+  puzzleCompleted = false;
+  puzzlePendingFruits = 0;
+  initPuzzle();
   scoreEl.textContent = 0;
   lvlEl.textContent   = 1;
   updateLivesHud();
@@ -656,6 +717,7 @@ function die() {
   overlayTitle.style.color = '#e06c75';
   overlayMsg.textContent   = `SCORE: ${score}  ·  LEVEL: ${level}  ·  PRESS SPACE TO RETRY`;
   overlay.classList.remove('hidden');
+  updatePuzzleLock();
 }
 
 // ── Skill tree ─────────────────────────────────────────────────────────────
@@ -823,6 +885,7 @@ function confirmReset() {
   overlayTitle.style.color = '#e06c75';
   overlayMsg.textContent   = 'PRESS SPACE OR ENTER TO START';
   overlay.classList.remove('hidden');
+  updatePuzzleLock();
 }
 
 function cancelReset() {
@@ -832,6 +895,7 @@ function cancelReset() {
   overlayTitle.style.color = '#4ecca3';
   overlayMsg.textContent   = 'PRESS SPACE TO RESUME';
   overlay.classList.remove('hidden');
+  updatePuzzleLock();
 }
 
 // ── Test mode ──────────────────────────────────────────────────────────────
@@ -940,9 +1004,20 @@ function applyTestMode() {
 // ── Start / pause ──────────────────────────────────────────────────────────
 function startGame() {
   overlay.classList.add('hidden');
+  const pending = puzzlePendingFruits;
   init();
+  if (pending > 0) {
+    puzzleCompleted = true;
+    score = pending;
+    exp   = pending; // expPerFruit() = 1.0 at game start (no skills yet)
+    scoreEl.textContent = score;
+    checkLevelUp();
+    updateLevelPanels();
+    showBanner('PUZZLE +10 FRUITS!', '#4ecca3');
+  }
   state = 'playing';
   restartInterval();
+  updatePuzzleLock();
 }
 
 function togglePause() {
@@ -954,10 +1029,12 @@ function togglePause() {
     overlayTitle.style.color = '#4ecca3';
     overlayMsg.textContent   = 'PRESS SPACE TO RESUME';
     overlay.classList.remove('hidden');
+    updatePuzzleLock();
   } else if (state === 'paused') {
     overlay.classList.add('hidden');
     state = 'playing';
     restartInterval();
+    updatePuzzleLock();
   }
 }
 
@@ -1004,10 +1081,98 @@ canvas.addEventListener('touchend', e => {
   if (nextDir[0] === -dir[0] && nextDir[1] === -dir[1]) nextDir = dir;
 }, { passive: true });
 
+// ── Sliding puzzle ─────────────────────────────────────────────────────────
+const PUZZLE_GOAL   = [1,2,3,4,5,6,7,8,0];
+const puzzleSection = document.getElementById('puzzle-section');
+const puzzleGridEl  = document.getElementById('puzzle-grid');
+const puzzleMsgEl   = document.getElementById('puzzle-msg');
+const puzzleLockEl  = document.getElementById('puzzle-lock');
+let puzzleTiles = [], puzzleCompleted = false, puzzlePendingFruits = 0;
+
+// Fade in when scrolled into view — stays hidden until user scrolls down
+const _puzzleObs = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting) {
+    puzzleSection.classList.add('revealed');
+    _puzzleObs.disconnect();
+  }
+}, { threshold: 0.05 });
+_puzzleObs.observe(puzzleSection);
+
+function puzzleNeighbors(i) {
+  const r = Math.floor(i / 3), c = i % 3, n = [];
+  if (r > 0) n.push(i - 3);
+  if (r < 2) n.push(i + 3);
+  if (c > 0) n.push(i - 1);
+  if (c < 2) n.push(i + 1);
+  return n;
+}
+
+function initPuzzle() {
+  puzzleTiles = [...PUZZLE_GOAL];
+  for (let k = 0; k < 200; k++) {
+    const ei = puzzleTiles.indexOf(0);
+    const nb = puzzleNeighbors(ei);
+    const pick = nb[Math.floor(Math.random() * nb.length)];
+    [puzzleTiles[ei], puzzleTiles[pick]] = [puzzleTiles[pick], puzzleTiles[ei]];
+  }
+  // ensure not accidentally solved
+  if (puzzleTiles.every((v, i) => v === PUZZLE_GOAL[i]))
+    [puzzleTiles[0], puzzleTiles[1]] = [puzzleTiles[1], puzzleTiles[0]];
+  puzzleMsgEl.textContent = '';
+  puzzleMsgEl.className   = '';
+  renderPuzzle();
+}
+
+function renderPuzzle() {
+  puzzleGridEl.innerHTML = '';
+  puzzleTiles.forEach((val, idx) => {
+    const tile = document.createElement('div');
+    tile.className = 'p-tile' + (val === 0 ? ' p-empty' : (puzzleCompleted ? ' p-done' : ''));
+    tile.textContent = val === 0 ? '' : val;
+    if (val !== 0 && !puzzleCompleted) tile.addEventListener('click', () => puzzleClick(idx));
+    puzzleGridEl.appendChild(tile);
+  });
+}
+
+function puzzleClick(idx) {
+  if (state !== 'idle' && state !== 'paused') return;
+  if (puzzleCompleted) return;
+  const ei = puzzleTiles.indexOf(0);
+  if (!puzzleNeighbors(ei).includes(idx)) return;
+  [puzzleTiles[ei], puzzleTiles[idx]] = [puzzleTiles[idx], puzzleTiles[ei]];
+  renderPuzzle();
+  if (puzzleTiles.every((v, i) => v === PUZZLE_GOAL[i])) {
+    puzzleCompleted = true;
+    grantPuzzleReward();
+  }
+}
+
+function grantPuzzleReward() {
+  const n = 10, expGain = n * expPerFruit();
+  if (state === 'paused') {
+    score += n; exp += expGain;
+    scoreEl.textContent = score;
+    checkLevelUp(); updateLevelPanels();
+    if (skillTreeOpen) renderSkillTree();
+    puzzleMsgEl.textContent = `✓  +${n} FRUITS · +${expGain.toFixed(1)} EXP`;
+  } else {
+    // idle — defer to startGame
+    puzzlePendingFruits = n;
+    puzzleMsgEl.textContent = `✓  +${n} FRUITS · +${expGain.toFixed(1)} EXP — CLAIMED ON START`;
+  }
+  puzzleMsgEl.className = 'p-won';
+  renderPuzzle();
+}
+
+function updatePuzzleLock() {
+  puzzleLockEl.classList.toggle('active', state !== 'idle' && state !== 'paused');
+}
+
 // ── Boot ───────────────────────────────────────────────────────────────────
 state = 'idle';
 setGridSize(20, 20);
 init();
+updatePuzzleLock();
 
 function animLoop() { if (state === 'playing' && purpleBox) draw(); requestAnimationFrame(animLoop); }
 animLoop();
