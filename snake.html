@@ -231,7 +231,7 @@
       </div>
       <div class="tm-row">
         <span class="tm-label">Level <span class="tm-max">(1–10)</span></span>
-        <div><input class="tm-input" id="tm-level" type="number" min="1" max="10" value="1"></div>
+        <div><input class="tm-input" id="tm-level" type="number" min="1" max="20" value="1"></div>
       </div>
       <div class="tm-row">
         <span class="tm-label">Lives <span class="tm-max">(1–5)</span></span>
@@ -260,7 +260,7 @@
 <div id="controls">WASD / ARROWS &nbsp;·&nbsp; SPACE = PAUSE &nbsp;·&nbsp; E = SKILL TREE</div>
 
 <script>
-const LEVEL_THRESHOLDS = [0, 5, 12, 21, 32, 45, 60, 77, 96, 117]; // EXP to reach each level
+const LEVEL_THRESHOLDS = [0, 5, 12, 21, 32, 45, 60, 77, 96, 117, 140, 165, 192, 221, 252, 285, 320, 357, 396, 437]; // EXP to reach each level (20 levels)
 const BASE_SPEED  = 130;
 const SPEED_STEP  = 10;
 const POWERUP_POOL = ['extra-life', 'extra-fruit', 'extra-fruit', 'extra-fruit', 'bigger-map'];
@@ -372,6 +372,7 @@ const DIRS = {
 let COLS, ROWS, CELL;
 let snake, dir, nextDir, foods, maxFruits;
 let score, exp, best, lives, level, state, interval;
+let purpleBox = null, purpleBoxTimer = null;
 let skills, fruitsSpent;
 let skillTreeOpen = false;
 let prevState = null;
@@ -453,7 +454,8 @@ function init() {
   level       = 1;
   maxFruits        = 1;
   foods            = [];
-
+  purpleBox        = null;
+  clearInterval(purpleBoxTimer); purpleBoxTimer = null;
   testModeUsed     = false;
   skills           = { tongue: 0, expBoost: 0 };
   fruitsSpent = 0;
@@ -478,7 +480,8 @@ function randomEmptyCell() {
     if (++tries > 500) break;
   } while (
     snake.some(s => s.x === pos.x && s.y === pos.y) ||
-    foods.some(f => f.x === pos.x && f.y === pos.y)
+    foods.some(f => f.x === pos.x && f.y === pos.y) ||
+    (purpleBox && purpleBox.x === pos.x && purpleBox.y === pos.y)
   );
   return pos;
 }
@@ -543,8 +546,40 @@ function checkLevelUp() {
     // Pick a powerup; exclude extra-life if already at max
     const pool = lives >= getMaxLives() ? POWERUP_POOL.filter(t => t !== 'extra-life') : POWERUP_POOL;
     applyPowerup(pool[Math.floor(Math.random() * pool.length)]);
+    // Spawn purple box once player reaches level 15
+    if (level >= 15 && !purpleBoxTimer) {
+      purpleBox = randomEmptyCell();
+      purpleBoxTimer = setInterval(movePurpleBox, 3000);
+    }
   }
   updateLevelPanels();
+}
+
+function movePurpleBox() {
+  if (!purpleBox || state !== 'playing') return;
+  const dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+  // shuffle
+  for (let i = dirs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+  }
+  for (const [dx, dy] of dirs) {
+    const nx = purpleBox.x + dx, ny = purpleBox.y + dy;
+    if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+    // Purple box moves into snake body → box dies, reward EXP
+    if (snake.some(s => s.x === nx && s.y === ny)) {
+      purpleBox = null;
+      const reward = 5 + expPerFruit() * 2;
+      exp += reward;
+      showBanner(`💀 +${reward.toFixed(1)} EXP`, '#a855f7');
+      checkLevelUp();
+      draw();
+      return;
+    }
+    purpleBox = { x: nx, y: ny };
+    draw();
+    return;
+  }
 }
 
 function flashLevel() {
@@ -562,6 +597,9 @@ function step() {
     loseLife(); return;
   }
   if (snake.some(s => s.x === head.x && s.y === head.y)) {
+    loseLife(); return;
+  }
+  if (purpleBox && head.x === purpleBox.x && head.y === purpleBox.y) {
     loseLife(); return;
   }
 
@@ -610,6 +648,7 @@ function loseLife() {
 
 function die() {
   clearInterval(interval);
+  clearInterval(purpleBoxTimer); purpleBoxTimer = null; purpleBox = null;
   if (skillTreeOpen) closeSkillTree(false);
   state = 'dead';
   overlayTitle.textContent = 'GAME OVER';
@@ -720,6 +759,21 @@ function draw() {
     ctx.arc(f.x * CELL + CELL/2, f.y * CELL + CELL/2, CELL/2 - 3, 0, Math.PI*2);
     ctx.fill();
   });
+
+  // purple box
+  if (purpleBox) {
+    ctx.save();
+    ctx.shadowColor = '#a855f7';
+    ctx.shadowBlur  = 8 + 5 * Math.sin(Date.now() / 300);
+    ctx.fillStyle   = '#7e22ce';
+    ctx.beginPath();
+    ctx.roundRect(purpleBox.x * CELL + 1, purpleBox.y * CELL + 1, CELL - 2, CELL - 2, 3);
+    ctx.fill();
+    ctx.strokeStyle = '#d8b4fe';
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  }
 
   snake.forEach((seg, i) => {
     const t = i / (snake.length - 1 || 1);
@@ -836,7 +890,7 @@ function applyTestMode() {
 
   // Read inputs
   const newLength   = Math.max(3,  Math.min(80, parseInt(document.getElementById('tm-length').value)  || 3));
-  const newLevel    = Math.max(1,  Math.min(10, parseInt(document.getElementById('tm-level').value)   || 1));
+  const newLevel    = Math.max(1,  Math.min(20, parseInt(document.getElementById('tm-level').value)   || 1));
   const newLives    = Math.max(1,  Math.min(3,  parseInt(document.getElementById('tm-lives').value)   || 3));
   const newSpendable= Math.max(0,              parseInt(document.getElementById('tm-fruits').value)  || 0);
 
@@ -954,7 +1008,7 @@ state = 'idle';
 setGridSize(20, 20);
 init();
 
-function animLoop() { requestAnimationFrame(animLoop); }
+function animLoop() { if (state === 'playing' && purpleBox) draw(); requestAnimationFrame(animLoop); }
 animLoop();
 </script>
 </body>
