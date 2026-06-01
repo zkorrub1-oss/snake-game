@@ -301,6 +301,24 @@ const SKILL_DEFS = [
     requires: { id: 'extraFruit', level: 10 },
   },
   {
+    id: 'maxLives',
+    name: '+1 MAX LIVES',
+    icon: '♥',
+    desc: 'Raise the lives cap by 1 and gain a life immediately',
+    cost: 30,
+    maxLevel: 5,
+    requires: { id: 'levelSynergy', level: 1 },
+  },
+  {
+    id: 'mapExpand',
+    name: 'BORDER INCREASE',
+    icon: '⬛',
+    desc: 'Expand the map by one layer (same as the level-up power-up)',
+    cost: 20,
+    maxLevel: 20,
+    requires: { id: 'levelSynergy', level: 1 },
+  },
+  {
     id: 'slowDown',
     name: 'SERPENT PACE',
     icon: '🐢',
@@ -361,9 +379,12 @@ function expPerFruit() {
   return val;
 }
 function spendableFruits() { return score - fruitsSpent; }
+function getMaxLives() { return 3 + (skills.maxLives || 0); }
+
 function skillCost(def) {
   if (def.id === 'expBoost')   return def.cost + (skills.expBoost   || 0) * 5;
   if (def.id === 'extraFruit') return def.cost + (skills.extraFruit || 0) * 10;
+  if (def.id === 'mapExpand')  return def.cost + (skills.mapExpand  || 0) * 20;
   return def.cost;
 }
 
@@ -477,7 +498,7 @@ function applyPowerup(type) {
   };
   showBanner(labels[type].text, labels[type].color);
   switch (type) {
-    case 'extra-life': lives = Math.min(lives + 1, 3); updateLivesHud(); break;
+    case 'extra-life': lives = Math.min(lives + 1, getMaxLives()); updateLivesHud(); break;
     case 'extra-fruit': maxFruits++; refillFoods(); break;
     case 'bigger-map': growMap(); break;
   }
@@ -510,7 +531,7 @@ function checkLevelUp() {
     flashLevel();
     restartInterval();
     // Pick a powerup; exclude extra-life if already at max
-    const pool = lives >= 3 ? POWERUP_POOL.filter(t => t !== 'extra-life') : POWERUP_POOL;
+    const pool = lives >= getMaxLives() ? POWERUP_POOL.filter(t => t !== 'extra-life') : POWERUP_POOL;
     applyPowerup(pool[Math.floor(Math.random() * pool.length)]);
   }
   updateLevelPanels();
@@ -667,6 +688,8 @@ function buySkill(id) {
   fruitsSpent += cost;
   skills[id] = (skills[id] || 0) + 1;
   if (id === 'extraFruit') { maxFruits++; refillFoods(); }
+  if (id === 'mapExpand')  { growMap(); }
+  if (id === 'maxLives')   { lives = Math.min(lives + 1, getMaxLives()); updateLivesHud(); }
   renderSkillTree();
 }
 
