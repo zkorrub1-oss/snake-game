@@ -292,6 +292,15 @@ const SKILL_DEFS = [
     requires: { id: 'expBoost', level: 3 },
   },
   {
+    id: 'levelSynergy',
+    name: 'LEVEL SYNERGY',
+    icon: '⚡',
+    desc: 'Add player level ÷ 10 to EXP/fruit (max +2.0 at level 20)',
+    cost: 80,
+    maxLevel: 1,
+    requires: { id: 'extraFruit', level: 10 },
+  },
+  {
     id: 'slowDown',
     name: 'SERPENT PACE',
     icon: '🐢',
@@ -346,7 +355,11 @@ localStorage.removeItem('snakeBest');
 bestEl.textContent = best;
 let testModeUsed = false;
 
-function expPerFruit()     { return 1.0 + (skills.expBoost || 0) * 0.1; }
+function expPerFruit() {
+  let val = 1.0 + (skills.expBoost || 0) * 0.1;
+  if (skills.levelSynergy > 0) val += Math.min(level, 20) / 10;
+  return val;
+}
 function spendableFruits() { return score - fruitsSpent; }
 function skillCost(def) {
   if (def.id === 'expBoost')   return def.cost + (skills.expBoost   || 0) * 5;
