@@ -74,6 +74,15 @@ const SKILL_DEFS = [
     maxLevel: 10,
     requires: { id: 'tongue', level: 1 },
   },
+  {
+    id: 'quickRespawn',
+    name: 'HAUNTING',
+    icon: '🟣',
+    desc: 'Purple box respawns in 10s instead of 15s',
+    cost: 0,
+    maxLevel: 1,
+    requiresKills: 2,
+  },
 ];
 
 const canvas       = document.getElementById('c');
@@ -110,7 +119,7 @@ const DIRS = {
 let COLS, ROWS, CELL;
 let snake, dir, nextDir, foods, maxFruits;
 let score, exp, best, lives, level, state, interval;
-let purpleBox = null, purpleBoxTimer = null;
+let purpleBox = null, purpleBoxTimer = null, purpleBoxKills = 0;
 let skills, fruitsSpent;
 let skillTreeOpen = false;
 let prevState = null;
@@ -194,6 +203,7 @@ function init() {
   foods            = [];
   purpleBox        = null;
   clearInterval(purpleBoxTimer); purpleBoxTimer = null;
+  purpleBoxKills   = 0;
   testModeUsed     = false;
   skills           = { tongue: 0, expBoost: 0 };
   fruitsSpent = 0;
@@ -310,12 +320,15 @@ function movePurpleBox() {
     // Purple box moves into snake body → box dies, reward EXP
     if (snake.some(s => s.x === nx && s.y === ny)) {
       purpleBox = null;
+      purpleBoxKills++;
       const reward = 5 + expPerFruit() * 2;
       exp += reward;
       showBanner(`💀 +${reward.toFixed(1)} EXP`, '#a855f7');
       checkLevelUp();
+      if (skillTreeOpen) renderSkillTree(); // reveal HAUNTING after 2nd kill
       draw();
-      setTimeout(() => { if (purpleBoxTimer) purpleBox = randomEmptyCell(); }, 15000);
+      const respawnDelay = skills.quickRespawn ? 10000 : 15000;
+      setTimeout(() => { if (purpleBoxTimer) purpleBox = randomEmptyCell(); }, respawnDelay);
       return;
     }
     purpleBox = { x: nx, y: ny };
@@ -436,7 +449,8 @@ function renderSkillTree() {
     const maxed    = lvl >= def.maxLevel;
     const cost     = skillCost(def);
     const afford   = spendableFruits() >= cost;
-    const unlocked = !def.requires || (skills[def.requires.id] || 0) >= def.requires.level;
+    const unlocked = (!def.requiresKills || purpleBoxKills >= def.requiresKills) &&
+                     (!def.requires || (skills[def.requires.id] || 0) >= def.requires.level);
     if (!unlocked) return;
 
     const card = document.createElement('div');
@@ -449,6 +463,8 @@ function renderSkillTree() {
     let btnHtml;
     if (maxed) {
       btnHtml = `<button class="skill-btn owned" disabled>${def.maxLevel > 1 ? 'MAX' : 'OWNED'}</button>`;
+    } else if (cost === 0) {
+      btnHtml = `<button class="skill-btn" data-id="${def.id}">UNLOCK<br><span class="skill-cost">FREE</span></button>`;
     } else {
       btnHtml = `<button class="skill-btn" data-id="${def.id}" ${afford ? '' : 'disabled'}>
         BUY<br><span class="skill-cost">${cost} fruits</span>
@@ -477,6 +493,7 @@ function buySkill(id) {
   const cost = skillCost(def);
   if (!def || (skills[id] || 0) >= def.maxLevel || spendableFruits() < cost) return;
   if (def.requires && (skills[def.requires.id] || 0) < def.requires.level) return;
+  if (def.requiresKills && purpleBoxKills < def.requiresKills) return;
   fruitsSpent += cost;
   skills[id] = (skills[id] || 0) + 1;
   if (id === 'extraFruit') { maxFruits++; refillFoods(); }
