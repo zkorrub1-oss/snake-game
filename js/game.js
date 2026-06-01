@@ -33,7 +33,7 @@ const SKILL_DEFS = [
     id: 'levelSynergy',
     name: 'LEVEL SYNERGY',
     icon: '⚡',
-    desc: 'Add player level ÷ 10 to EXP/fruit (max +2.0 at level 20)',
+    desc: 'Add player level to EXP/fruit',
     cost: 80,
     maxLevel: 1,
     requires: { id: 'extraFruit', level: 10 },
@@ -132,7 +132,7 @@ let testModeUsed = false;
 
 function expPerFruit() {
   let val = 1.0 + (skills.expBoost || 0) * 0.1;
-  if (skills.levelSynergy > 0) val += Math.min(level, 20) / 10;
+  if (skills.levelSynergy > 0) val += level;
   return val;
 }
 function spendableFruits() { return score - fruitsSpent; }
