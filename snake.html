@@ -319,6 +319,15 @@ const SKILL_DEFS = [
     requires: { id: 'levelSynergy', level: 1 },
   },
   {
+    id: 'speedBoost',
+    name: 'OVERDRIVE',
+    icon: '💨',
+    desc: 'Increase speed by 5% of starting speed per level',
+    cost: 20,
+    maxLevel: 10,
+    requires: { id: 'levelSynergy', level: 1 },
+  },
+  {
     id: 'slowDown',
     name: 'SERPENT PACE',
     icon: '🐢',
@@ -414,7 +423,8 @@ function restartInterval() {
   const base = speedForLevel(level);
   // Each Serpent Pace level reduces speed by 0.1% (level 10 = 99% speed)
   const speedFactor = 1 - (skills.slowDown || 0) * 0.001;
-  const ms = Math.round(base / speedFactor);
+  const boost = (skills.speedBoost || 0) * BASE_SPEED * 0.05;
+  const ms = Math.max(50, Math.round(base / speedFactor - boost));
   interval = setInterval(step, ms);
 }
 
