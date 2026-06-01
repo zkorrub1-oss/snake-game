@@ -235,7 +235,7 @@
       </div>
       <div class="tm-row">
         <span class="tm-label">Lives <span class="tm-max">(1–5)</span></span>
-        <div><input class="tm-input" id="tm-lives" type="number" min="1" max="5" value="3"></div>
+        <div><input class="tm-input" id="tm-lives" type="number" min="1" max="3" value="3"></div>
       </div>
       <div class="tm-row">
         <span class="tm-label">Spendable Fruits</span>
@@ -263,8 +263,7 @@
 const LEVEL_THRESHOLDS = [0, 5, 12, 21, 32, 45, 60, 77, 96, 117]; // EXP to reach each level
 const BASE_SPEED  = 130;
 const SPEED_STEP  = 10;
-const POWERUP_POOL   = ['extra-life','extra-life','extra-life','extra-fruit','extra-fruit','extra-fruit','bigger-map'];
-const POWERUP_CHANCE = 0.25;
+const POWERUP_POOL = ['extra-fruit', 'extra-fruit', 'extra-fruit', 'bigger-map'];
 
 const SKILL_DEFS = [
   {
@@ -344,8 +343,8 @@ const DIRS = {
 };
 
 let COLS, ROWS, CELL;
-let snake, dir, nextDir, foods, maxFruits, powerup;
-let score, exp, best, lives, level, state, interval;
+let snake, dir, nextDir, foods, maxFruits;
+let score, exp, best, lives, lifeRestoreCount, level, state, interval;
 let skills, fruitsSpent;
 let skillTreeOpen = false;
 let prevState = null;
@@ -415,10 +414,10 @@ function init() {
   exp         = 0;
   lives       = 3;
   level       = 1;
-  maxFruits   = 1;
-  foods       = [];
-  powerup     = null;
-  skills      = { tongue: 0, expBoost: 0 };
+  maxFruits        = 1;
+  foods            = [];
+  lifeRestoreCount = 0;
+  skills           = { tongue: 0, expBoost: 0 };
   fruitsSpent = 0;
   scoreEl.textContent = 0;
   lvlEl.textContent   = 1;
@@ -441,8 +440,7 @@ function randomEmptyCell() {
     if (++tries > 500) break;
   } while (
     snake.some(s => s.x === pos.x && s.y === pos.y) ||
-    foods.some(f => f.x === pos.x && f.y === pos.y) ||
-    (powerup && powerup.x === pos.x && powerup.y === pos.y)
+    foods.some(f => f.x === pos.x && f.y === pos.y)
   );
   return pos;
 }
@@ -460,33 +458,25 @@ function consumeFruit(grow) {
   if (grow) snake.push({ ...snake[snake.length - 1] });
   checkLevelUp();
   refillFoods();
-  maybeSpawnPowerup();
   if (skillTreeOpen) renderSkillTree(); // keep fruit count live
 }
 
-// ── Power-ups ──────────────────────────────────────────────────────────────
-function maybeSpawnPowerup() {
-  if (powerup || Math.random() > POWERUP_CHANCE) return;
-  const type = POWERUP_POOL[Math.floor(Math.random() * POWERUP_POOL.length)];
-  powerup = { ...randomEmptyCell(), type };
-}
-
+// ── Power-ups (applied directly on level up, never placed on map) ──────────
 function applyPowerup(type) {
   const labels = {
-    'extra-life':  { text: '♥ EXTRA LIFE', color: '#e06c75' },
     'extra-fruit': { text: '★ +1 FRUIT',   color: '#ffd700' },
     'bigger-map':  { text: '⊞ BIGGER MAP', color: '#61afef' },
   };
   showBanner(labels[type].text, labels[type].color);
   switch (type) {
-    case 'extra-life': lives = Math.min(lives + 1, 5); updateLivesHud(); break;
     case 'extra-fruit': maxFruits++; refillFoods(); break;
     case 'bigger-map': growMap(); break;
   }
 }
 
 function growMap() {
-  const nc = Math.min(COLS + 5, 40), nr = Math.min(ROWS + 5, 40);
+  // Grow by 1 layer (1 extra cell on each side = +2 per dimension)
+  const nc = Math.min(COLS + 2, 40), nr = Math.min(ROWS + 2, 40);
   if (nc === COLS && nr === ROWS) { showBanner('MAP IS MAX SIZE', '#a0a0c0'); return; }
   setGridSize(nc, nr);
   refillFoods();
@@ -510,8 +500,16 @@ function checkLevelUp() {
     lvlEl.textContent = level;
     flashLevel();
     restartInterval();
-    const type = POWERUP_POOL[Math.floor(Math.random() * POWERUP_POOL.length)];
-    applyPowerup(type);
+    // Restore a life if one is owed (guaranteed when player dropped to 1 life)
+    if (lifeRestoreCount > 0 && lives < 3) {
+      lives++;
+      lifeRestoreCount--;
+      updateLivesHud();
+      showBanner('♥ LIFE RESTORED', '#e06c75');
+    } else {
+      const type = POWERUP_POOL[Math.floor(Math.random() * POWERUP_POOL.length)];
+      applyPowerup(type);
+    }
   }
   updateLevelPanels();
 }
@@ -561,16 +559,13 @@ function step() {
     }
   }
 
-  if (powerup && head.x === powerup.x && head.y === powerup.y) {
-    const t = powerup.type; powerup = null; applyPowerup(t);
-  }
-
   draw();
 }
 
 // ── Lives & death ──────────────────────────────────────────────────────────
 function loseLife() {
   lives--;
+  if (lives === 1) lifeRestoreCount = 2; // guarantee 2 life restores on next level-ups
   updateLivesHud();
   if (lives <= 0) {
     die();
@@ -578,7 +573,7 @@ function loseLife() {
     snake   = [{ x: Math.floor(COLS/2), y: Math.floor(ROWS/2) },
                { x: Math.floor(COLS/2)-1, y: Math.floor(ROWS/2) },
                { x: Math.floor(COLS/2)-2, y: Math.floor(ROWS/2) }];
-    dir = [1,0]; nextDir = [1,0]; powerup = null; foods = [];
+    dir = [1,0]; nextDir = [1,0]; foods = [];
     refillFoods();
     showBanner(`♥ ${lives} LIFE${lives!==1?'S':''} LEFT`, '#e06c75');
     draw();
@@ -679,8 +674,6 @@ function buySkill(id) {
 }
 
 // ── Draw ───────────────────────────────────────────────────────────────────
-const POWERUP_COLORS = { 'extra-life':'#e06c75', 'extra-fruit':'#ffd700', 'bigger-map':'#61afef' };
-const POWERUP_ICONS  = { 'extra-life':'♥',       'extra-fruit':'★',       'bigger-map':'⊞' };
 
 function draw() {
   ctx.fillStyle = '#0f0f1e';
@@ -697,20 +690,6 @@ function draw() {
     ctx.arc(f.x * CELL + CELL/2, f.y * CELL + CELL/2, CELL/2 - 3, 0, Math.PI*2);
     ctx.fill();
   });
-
-  if (powerup) {
-    const px = powerup.x * CELL, py = powerup.y * CELL;
-    const color = POWERUP_COLORS[powerup.type];
-    ctx.save();
-    ctx.shadowColor = color;
-    ctx.shadowBlur  = 10 + 6 * Math.sin(Date.now() / 200);
-    ctx.fillStyle   = color + 'cc';
-    ctx.beginPath(); ctx.roundRect(px+2, py+2, CELL-4, CELL-4, 5); ctx.fill();
-    ctx.restore();
-    ctx.fillStyle = '#fff'; ctx.font = `${CELL-6}px serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(POWERUP_ICONS[powerup.type], px + CELL/2, py + CELL/2 + 1);
-  }
 
   snake.forEach((seg, i) => {
     const t = i / (snake.length - 1 || 1);
@@ -828,11 +807,12 @@ function applyTestMode() {
   // Read inputs
   const newLength   = Math.max(3,  Math.min(80, parseInt(document.getElementById('tm-length').value)  || 3));
   const newLevel    = Math.max(1,  Math.min(10, parseInt(document.getElementById('tm-level').value)   || 1));
-  const newLives    = Math.max(1,  Math.min(5,  parseInt(document.getElementById('tm-lives').value)   || 3));
+  const newLives    = Math.max(1,  Math.min(3,  parseInt(document.getElementById('tm-lives').value)   || 3));
   const newSpendable= Math.max(0,              parseInt(document.getElementById('tm-fruits').value)  || 0);
 
   // Full reset first
   init();
+  lifeRestoreCount = 0;
 
   // Override level / exp (set to the start EXP of that level)
   level = newLevel;
@@ -943,7 +923,7 @@ state = 'idle';
 setGridSize(20, 20);
 init();
 
-function animLoop() { if ((state === 'playing' || skillTreeOpen) && powerup) draw(); requestAnimationFrame(animLoop); }
+function animLoop() { requestAnimationFrame(animLoop); }
 animLoop();
 </script>
 </body>
