@@ -296,7 +296,7 @@ const SKILL_DEFS = [
     id: 'slowDown',
     name: 'SERPENT PACE',
     icon: '🐢',
-    desc: 'Decrease snake speed by 10% per level',
+    desc: 'Decrease snake speed by 0.1% per level',
     cost: 5,
     maxLevel: 10,
     requires: { id: 'tongue', level: 1 },
@@ -386,7 +386,7 @@ function speedForLevel(l) { return Math.max(50, BASE_SPEED - (l - 1) * SPEED_STE
 function restartInterval() {
   clearInterval(interval);
   const base = speedForLevel(level);
-  const ms   = Math.round(base * (1 + (skills.slowDown || 0) * 0.1));
+  const ms   = Math.round(base * (1 + (skills.slowDown || 0) * 0.001));
   interval = setInterval(step, ms);
 }
 
