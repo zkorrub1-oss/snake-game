@@ -435,7 +435,7 @@ function closeSkillTree(resume = true) {
   } else {
     overlayTitle.textContent = 'PAUSED';
     overlayTitle.style.color = '#4ecca3';
-    overlayMsg.textContent   = 'PRESS SPACE TO RESUME';
+    overlayMsg.textContent   = 'PRESS P TO RESUME';
     overlay.classList.remove('hidden');
   }
 }
@@ -620,7 +620,7 @@ function cancelReset() {
   state = 'paused';
   overlayTitle.textContent = 'PAUSED';
   overlayTitle.style.color = '#4ecca3';
-  overlayMsg.textContent   = 'PRESS SPACE TO RESUME';
+  overlayMsg.textContent   = 'PRESS P TO RESUME';
   overlay.classList.remove('hidden');
   updatePuzzleLock();
 }
@@ -671,7 +671,7 @@ function closeTestMode() {
   } else {
     overlayTitle.textContent = 'PAUSED';
     overlayTitle.style.color = '#4ecca3';
-    overlayMsg.textContent   = 'PRESS SPACE TO RESUME';
+    overlayMsg.textContent   = 'PRESS P TO RESUME';
     overlay.classList.remove('hidden');
   }
 }
@@ -754,7 +754,7 @@ function togglePause() {
     state = 'paused';
     overlayTitle.textContent = 'PAUSED';
     overlayTitle.style.color = '#4ecca3';
-    overlayMsg.textContent   = 'PRESS SPACE TO RESUME';
+    overlayMsg.textContent   = 'PRESS P TO RESUME';
     overlay.classList.remove('hidden');
     updatePuzzleLock();
   } else if (state === 'paused') {
@@ -786,7 +786,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && (state === 'idle' || state === 'dead')) {
     startGame(); return;
   }
-  if (e.key === ' ' && (state === 'playing' || state === 'paused')) {
+  if ((e.key === 'p' || e.key === 'P') && (state === 'playing' || state === 'paused')) {
     togglePause(); return;
   }
   if (state !== 'playing' || skillTreeOpen || state === 'confirm-reset') return;
