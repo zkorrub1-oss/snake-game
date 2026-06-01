@@ -408,7 +408,7 @@ function die() {
   state = 'dead';
   overlayTitle.textContent = 'GAME OVER';
   overlayTitle.style.color = '#e06c75';
-  overlayMsg.textContent   = `SCORE: ${score}  ·  LEVEL: ${level}  ·  PRESS SPACE TO RETRY`;
+  overlayMsg.textContent   = `SCORE: ${score}  ·  LEVEL: ${level}  ·  PRESS ENTER TO RETRY`;
   overlay.classList.remove('hidden');
   updatePuzzleLock();
 }
@@ -609,7 +609,7 @@ function confirmReset() {
   state = 'idle';
   overlayTitle.textContent = 'READY';
   overlayTitle.style.color = '#e06c75';
-  overlayMsg.textContent   = 'PRESS SPACE OR ENTER TO START';
+  overlayMsg.textContent   = 'PRESS ENTER TO START';
   overlay.classList.remove('hidden');
   updatePuzzleLock();
 }
@@ -782,7 +782,7 @@ document.addEventListener('keydown', e => {
   }
   if (e.key === 'Escape' && skillTreeOpen) { closeSkillTree(); return; }
   if (e.key === 'Escape' && state === 'confirm-reset') { cancelReset(); return; }
-  if ((e.key === ' ' || e.key === 'Enter') && (state === 'idle' || state === 'dead')) {
+  if (e.key === 'Enter' && (state === 'idle' || state === 'dead')) {
     startGame(); return;
   }
   if (e.key === ' ' && (state === 'playing' || state === 'paused')) {
