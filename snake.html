@@ -350,8 +350,10 @@ let skillTreeOpen = false;
 let prevState = null;
 let puBannerTimeout = null;
 
-best = parseInt(localStorage.getItem('snakeBest') || '0');
+best = 0;
+localStorage.removeItem('snakeBest');
 bestEl.textContent = best;
+let testModeUsed = false;
 
 function expPerFruit()     { return 1.0 + (skills.expBoost || 0) * 0.1; }
 function spendableFruits() { return score - fruitsSpent; }
@@ -417,6 +419,7 @@ function init() {
   maxFruits        = 1;
   foods            = [];
   lifeRestoreCount = 0;
+  testModeUsed     = false;
   skills           = { tongue: 0, expBoost: 0 };
   fruitsSpent = 0;
   scoreEl.textContent = 0;
@@ -454,7 +457,7 @@ function consumeFruit(grow) {
   score++;
   exp += expPerFruit();
   scoreEl.textContent = score;
-  if (score > best) { best = score; bestEl.textContent = best; localStorage.setItem('snakeBest', best); }
+  if (!testModeUsed && score > best) { best = score; bestEl.textContent = best; localStorage.setItem('snakeBest', best); }
   if (grow) snake.push({ ...snake[snake.length - 1] });
   checkLevelUp();
   refillFoods();
@@ -813,6 +816,7 @@ function applyTestMode() {
   // Full reset first
   init();
   lifeRestoreCount = 0;
+  testModeUsed     = true;
 
   // Override level / exp (set to the start EXP of that level)
   level = newLevel;
