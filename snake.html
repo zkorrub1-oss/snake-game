@@ -545,21 +545,17 @@ function renderSkillTree() {
     const cost     = skillCost(def);
     const afford   = spendableFruits() >= cost;
     const unlocked = !def.requires || (skills[def.requires.id] || 0) >= def.requires.level;
+    if (!unlocked) return;
 
     const card = document.createElement('div');
-    card.className = 'skill-card' + (lvl > 0 ? ' has-level' : '') + (unlocked ? '' : ' locked');
+    card.className = 'skill-card' + (lvl > 0 ? ' has-level' : '');
 
     const levelLine = def.maxLevel > 1
       ? `<div class="skill-lvl">LEVEL ${lvl} / ${def.maxLevel}</div>`
       : (lvl > 0 ? `<div class="skill-lvl">UNLOCKED</div>` : '');
 
     let btnHtml;
-    if (!unlocked) {
-      const req = def.requires;
-      btnHtml = `<button class="skill-btn" disabled style="font-size:0.6rem;line-height:1.5">
-        🔒<br><span style="color:#555577">${{expBoost:'+0.1 EXP', tongue:'TONGUE', extraFruit:'+1 FRUIT'}[req.id] ?? req.id} LVL ${req.level}</span>
-      </button>`;
-    } else if (maxed) {
+    if (maxed) {
       btnHtml = `<button class="skill-btn owned" disabled>${def.maxLevel > 1 ? 'MAX' : 'OWNED'}</button>`;
     } else {
       btnHtml = `<button class="skill-btn" data-id="${def.id}" ${afford ? '' : 'disabled'}>
@@ -568,8 +564,8 @@ function renderSkillTree() {
     }
 
     card.innerHTML = `
-      <div class="skill-icon" style="${unlocked ? '' : 'opacity:0.35'}">${def.icon}</div>
-      <div class="skill-info" style="${unlocked ? '' : 'opacity:0.4'}">
+      <div class="skill-icon">${def.icon}</div>
+      <div class="skill-info">
         <div class="skill-name">${def.name}</div>
         <div class="skill-desc">${def.desc}</div>
         ${levelLine}
