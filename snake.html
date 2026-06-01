@@ -386,7 +386,9 @@ function speedForLevel(l) { return Math.max(50, BASE_SPEED - (l - 1) * SPEED_STE
 function restartInterval() {
   clearInterval(interval);
   const base = speedForLevel(level);
-  const ms   = Math.round(base * (1 + (skills.slowDown || 0) * 0.001));
+  // Each Serpent Pace level reduces speed by 0.1% (level 10 = 99% speed)
+  const speedFactor = 1 - (skills.slowDown || 0) * 0.001;
+  const ms = Math.round(base / speedFactor);
   interval = setInterval(step, ms);
 }
 
