@@ -14,9 +14,9 @@ const SKILL_DEFS = [
   },
   {
     id: 'expBoost',
-    name: '+0.1 EXP / FRUIT',
+    name: '+1 EXP / FRUIT',
     icon: '✦',
-    desc: 'Earn 0.1 more EXP per fruit (stackable)',
+    desc: 'Earn 1 more EXP per fruit (stackable)',
     cost: 5,
     maxLevel: 5,
   },
@@ -131,7 +131,7 @@ bestEl.textContent = best;
 let testModeUsed = false;
 
 function expPerFruit() {
-  let val = 1.0 + (skills.expBoost || 0) * 0.1;
+  let val = 1.0 + (skills.expBoost || 0);
   if (skills.levelSynergy > 0) val += level;
   return val;
 }
