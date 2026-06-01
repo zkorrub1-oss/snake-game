@@ -513,10 +513,40 @@ function draw() {
       ctx.fillRect(x * CELL + 9, y * CELL + 9, 2, 2);
 
   foods.forEach(f => {
+    const cx = f.x * CELL + CELL / 2;
+    const cy = f.y * CELL + CELL / 2 + 1; // shift body down to leave room for stem
+    ctx.save();
+
+    // Body
     ctx.fillStyle = '#e06c75';
     ctx.beginPath();
-    ctx.arc(f.x * CELL + CELL/2, f.y * CELL + CELL/2, CELL/2 - 3, 0, Math.PI*2);
+    ctx.arc(cx, cy, CELL / 2 - 4, 0, Math.PI * 2);
     ctx.fill();
+
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(cx - 2, cy - 2, 2, 1.5, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Stem
+    ctx.strokeStyle = '#8b5e3c';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 5);
+    ctx.quadraticCurveTo(cx + 1.5, cy - 7, cx + 1, cy - 9);
+    ctx.stroke();
+
+    // Leaf
+    ctx.fillStyle = '#4ecca3';
+    ctx.translate(cx + 2.5, cy - 7);
+    ctx.rotate(0.5);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 3, 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
   });
 
   // purple box
