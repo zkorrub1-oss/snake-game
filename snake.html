@@ -574,6 +574,7 @@ function movePurpleBox() {
       showBanner(`💀 +${reward.toFixed(1)} EXP`, '#a855f7');
       checkLevelUp();
       draw();
+      setTimeout(() => { if (purpleBoxTimer) purpleBox = randomEmptyCell(); }, 15000);
       return;
     }
     purpleBox = { x: nx, y: ny };
