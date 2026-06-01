@@ -300,15 +300,6 @@ const SKILL_DEFS = [
     maxLevel: 10,
     requires: { id: 'tongue', level: 1 },
   },
-  {
-    id: 'wallPhase',
-    name: 'WALL PHASE',
-    icon: '👻',
-    desc: 'Pass through walls and appear on the opposite side',
-    cost: 80,
-    maxLevel: 1,
-    requires: { id: 'slowDown', level: 5 },
-  },
 ];
 
 const canvas       = document.getElementById('c');
@@ -528,10 +519,7 @@ function step() {
   dir = nextDir;
   const head = { x: snake[0].x + dir[0], y: snake[0].y + dir[1] };
 
-  if (skills.wallPhase > 0) {
-    head.x = (head.x + COLS) % COLS;
-    head.y = (head.y + ROWS) % ROWS;
-  } else if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
+  if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
     loseLife(); return;
   }
   if (snake.some(s => s.x === head.x && s.y === head.y)) {
@@ -552,7 +540,6 @@ function step() {
   if (skills.tongue > 0) {
     let tipX = head.x + dir[0];
     let tipY = head.y + dir[1];
-    if (skills.wallPhase > 0) { tipX = (tipX + COLS) % COLS; tipY = (tipY + ROWS) % ROWS; }
     if (tipX >= 0 && tipX < COLS && tipY >= 0 && tipY < ROWS) {
       const tIdx = foods.findIndex(f => f.x === tipX && f.y === tipY);
       if (tIdx !== -1) {
