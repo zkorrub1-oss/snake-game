@@ -76,6 +76,15 @@ const SKILL_DEFS = [
     requires: { id: 'tongue', level: 1 },
   },
   {
+    id: 'bonusFruit',
+    name: '+1 FRUIT',
+    icon: '🍏',
+    desc: 'Permanently add one more fruit to the map',
+    cost: 10,
+    maxLevel: 5,
+    requires: { id: 'slowDown', level: 5 },
+  },
+  {
     id: 'patience',
     name: 'PATIENCE',
     icon: '⏳',
@@ -503,7 +512,7 @@ function buySkill(id) {
   if (def.requiresKills && purpleBoxKills < def.requiresKills) return;
   fruitsSpent += cost;
   skills[id] = (skills[id] || 0) + 1;
-  if (id === 'extraFruit') { maxFruits++; refillFoods(); }
+  if (id === 'extraFruit' || id === 'bonusFruit') { maxFruits++; refillFoods(); }
   if (id === 'mapExpand')  { growMap(); }
   if (id === 'maxLives')   { lives = Math.min(lives + 1, getMaxLives()); updateLivesHud(); }
   renderSkillTree();
