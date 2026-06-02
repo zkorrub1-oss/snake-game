@@ -44,7 +44,7 @@ const SKILL_DEFS = [
     icon: '♥',
     desc: 'Raise the lives cap by 1 and gain a life immediately',
     cost: 30,
-    maxLevel: 5,
+    maxLevel: 1,
     requires: { id: 'levelSynergy', level: 1 },
   },
   {
