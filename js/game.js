@@ -1,4 +1,5 @@
-const LEVEL_THRESHOLDS = [0, 5, 12, 21, 32, 45, 60, 77, 96, 117, 140, 165, 192, 221, 252, 285, 320, 357, 396, 437]; // EXP to reach each level (20 levels)
+// EXP threshold to reach level l: (l-1)*(l+3)  — no cap, extends infinitely
+function thresholdForLevel(l) { return (l - 1) * (l + 3); }
 const BASE_SPEED  = 130;
 const SPEED_STEP  = 10;
 const POWERUP_POOL = ['extra-life', 'extra-fruit', 'extra-fruit', 'extra-fruit', 'bigger-map'];
@@ -157,11 +158,7 @@ function setGridSize(cols, rows) {
 
 // ── Level helpers ──────────────────────────────────────────────────────────
 function levelForExp(e) {
-  let l = 1;
-  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
-    if (e >= LEVEL_THRESHOLDS[i]) { l = i + 1; break; }
-  }
-  return Math.min(l, LEVEL_THRESHOLDS.length);
+  return Math.max(1, Math.floor(-1 + Math.sqrt(4 + e)));
 }
 
 function speedForLevel(l) { return Math.max(50, BASE_SPEED - (l - 1) * SPEED_STEP); }
@@ -183,11 +180,11 @@ function fmtNum(n) {
 }
 
 function updateLevelPanels() {
-  const start = LEVEL_THRESHOLDS[level - 1];
-  const end   = LEVEL_THRESHOLDS[level];
+  const start = thresholdForLevel(level);
+  const end   = thresholdForLevel(level + 1);
   eatenEl.textContent = fmtNum(exp - start);
-  needEl.textContent  = end !== undefined ? fmtNum(Math.max(0, end - exp)) : '—';
-  panelRightSub.textContent = end === undefined ? 'max\nlevel!' : 'to next\nlevel';
+  needEl.textContent  = fmtNum(Math.max(0, end - exp));
+  panelRightSub.textContent = 'to next\nlevel';
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
@@ -682,7 +679,7 @@ function applyTestMode() {
 
   // Read inputs
   const newLength   = Math.max(3,  Math.min(80, parseInt(document.getElementById('tm-length').value)  || 3));
-  const newLevel    = Math.max(1,  Math.min(20, parseInt(document.getElementById('tm-level').value)   || 1));
+  const newLevel    = Math.max(1,              parseInt(document.getElementById('tm-level').value)   || 1);
   const newLives    = Math.max(1,  Math.min(3,  parseInt(document.getElementById('tm-lives').value)   || 3));
   const newSpendable= Math.max(0,              parseInt(document.getElementById('tm-fruits').value)  || 0);
 
@@ -693,7 +690,7 @@ function applyTestMode() {
 
   // Override level / exp (set to the start EXP of that level)
   level = newLevel;
-  exp   = LEVEL_THRESHOLDS[newLevel - 1];
+  exp   = thresholdForLevel(newLevel);
   lvlEl.textContent = level;
 
   // Override lives
