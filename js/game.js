@@ -62,7 +62,7 @@ const SKILL_DEFS = [
     icon: '💨',
     desc: 'Decrease speed by 5% of starting speed per level',
     cost: 20,
-    maxLevel: 10,
+    maxLevel: 3,
     requires: { id: 'levelSynergy', level: 1 },
   },
   {
