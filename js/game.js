@@ -1,7 +1,8 @@
 // EXP threshold to reach level l: (l-1)*(l+3)  — no cap, extends infinitely
 function thresholdForLevel(l) { return (l - 1) * (l + 3); }
-const BASE_SPEED  = 130;
-const SPEED_STEP  = 10;
+const BASE_SPEED       = 130;
+const SPEED_STEP       = 10;  // ms removed per level, levels 1–9
+const SPEED_STEP_HARD  = 15;  // ms removed per level, levels 10+
 const POWERUP_POOL = ['extra-life', 'extra-fruit', 'extra-fruit', 'extra-fruit', 'bigger-map'];
 
 const SKILL_DEFS = [
@@ -179,7 +180,10 @@ function levelForExp(e) {
   return Math.max(1, Math.floor(-1 + Math.sqrt(4 + e)));
 }
 
-function speedForLevel(l) { return Math.max(50, BASE_SPEED - (l - 1) * SPEED_STEP); }
+function speedForLevel(l) {
+  if (l < 10) return Math.max(50, BASE_SPEED - (l - 1) * SPEED_STEP);
+  return Math.max(20, 50 - (l - 9) * SPEED_STEP_HARD);
+}
 
 function restartInterval() {
   clearInterval(interval);
