@@ -160,7 +160,7 @@ const DIRS = {
 let COLS, ROWS, CELL;
 let snake, dir, nextDir, foods, maxFruits;
 let score, exp, best, lives, level, state, interval;
-let purpleBox = null, purpleBoxTimer = null, purpleBoxKills = 0;
+let purpleBoxes = [], purpleBoxTimer = null, purpleBoxKills = 0;
 let skills, fruitsSpent;
 let skillTreeOpen = false;
 let prevState = null;
@@ -244,7 +244,7 @@ function init() {
   level       = 1;
   maxFruits        = 1;
   foods            = [];
-  purpleBox        = null;
+  purpleBoxes      = [];
   clearInterval(purpleBoxTimer); purpleBoxTimer = null;
   purpleBoxKills   = 0;
   testModeUsed     = false;
@@ -275,7 +275,7 @@ function randomEmptyCell() {
   } while (
     snake.some(s => s.x === pos.x && s.y === pos.y) ||
     foods.some(f => f.x === pos.x && f.y === pos.y) ||
-    (purpleBox && purpleBox.x === pos.x && purpleBox.y === pos.y)
+    purpleBoxes.some(b => b.x === pos.x && b.y === pos.y)
   );
   return pos;
 }
@@ -340,44 +340,50 @@ function checkLevelUp() {
     // Pick a powerup; exclude extra-life if already at max
     const pool = lives >= getMaxLives() ? POWERUP_POOL.filter(t => t !== 'extra-life') : POWERUP_POOL;
     applyPowerup(pool[Math.floor(Math.random() * pool.length)]);
-    // Spawn purple box once player reaches level 15
+    // Spawn a new purple box for each multiple of 15
     if (level >= 15 && !purpleBoxTimer) {
-      purpleBox = randomEmptyCell();
-      purpleBoxTimer = setInterval(movePurpleBox, 3000);
+      purpleBoxTimer = setInterval(movePurpleBoxes, 3000);
     }
+    const targetBoxes = Math.floor(level / 15);
+    while (purpleBoxes.length < targetBoxes) purpleBoxes.push(randomEmptyCell());
   }
   updateLevelPanels();
 }
 
-function movePurpleBox() {
-  if (!purpleBox || state !== 'playing') return;
-  const dirs = [[0,-1],[0,1],[-1,0],[1,0]];
-  // shuffle
-  for (let i = dirs.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
-  }
-  for (const [dx, dy] of dirs) {
-    const nx = purpleBox.x + dx, ny = purpleBox.y + dy;
-    if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
-    // Purple box moves into snake body → box dies, reward EXP
-    if (snake.some(s => s.x === nx && s.y === ny)) {
-      purpleBox = null;
-      purpleBoxKills++;
-      const reward = 5 + expPerFruit() * 2;
-      exp += reward;
-      showBanner(`💀 +${reward.toFixed(1)} EXP`, '#a855f7');
-      checkLevelUp();
-      if (skillTreeOpen) renderSkillTree(); // reveal HAUNTING after 2nd kill
-      draw();
-      const respawnDelay = skills.quickRespawn ? 10000 : 15000;
-      setTimeout(() => { if (purpleBoxTimer) purpleBox = randomEmptyCell(); }, respawnDelay);
-      return;
+function movePurpleBoxes() {
+  if (state !== 'playing') return;
+  // iterate backwards so splicing doesn't skip entries
+  for (let i = purpleBoxes.length - 1; i >= 0; i--) {
+    const box = purpleBoxes[i];
+    const dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+    for (let d = dirs.length - 1; d > 0; d--) {
+      const j = Math.floor(Math.random() * (d + 1));
+      [dirs[d], dirs[j]] = [dirs[j], dirs[d]];
     }
-    purpleBox = { x: nx, y: ny };
-    draw();
-    return;
+    for (const [dx, dy] of dirs) {
+      const nx = box.x + dx, ny = box.y + dy;
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      if (snake.some(s => s.x === nx && s.y === ny)) {
+        purpleBoxes.splice(i, 1);
+        purpleBoxKills++;
+        const reward = 5 + expPerFruit() * 2;
+        exp += reward;
+        showBanner(`💀 +${reward.toFixed(1)} EXP`, '#a855f7');
+        checkLevelUp();
+        if (skillTreeOpen) renderSkillTree();
+        draw();
+        const respawnDelay = skills.quickRespawn ? 10000 : 15000;
+        setTimeout(() => {
+          if (purpleBoxTimer && purpleBoxes.length < Math.floor(level / 15))
+            purpleBoxes.push(randomEmptyCell());
+        }, respawnDelay);
+        break;
+      }
+      purpleBoxes[i] = { x: nx, y: ny };
+      break;
+    }
   }
+  draw();
 }
 
 function flashLevel() {
@@ -397,7 +403,7 @@ function step() {
   if (snake.some(s => s.x === head.x && s.y === head.y)) {
     loseLife(); return;
   }
-  if (purpleBox && head.x === purpleBox.x && head.y === purpleBox.y) {
+  if (purpleBoxes.some(b => b.x === head.x && b.y === head.y)) {
     loseLife(); return;
   }
 
@@ -446,7 +452,7 @@ function loseLife() {
 
 function die() {
   clearInterval(interval);
-  clearInterval(purpleBoxTimer); purpleBoxTimer = null; purpleBox = null;
+  clearInterval(purpleBoxTimer); purpleBoxTimer = null; purpleBoxes = [];
   if (skillTreeOpen) closeSkillTree(false);
   state = 'dead';
   const rank = saveToLeaderboard();
@@ -591,18 +597,20 @@ function draw() {
     ctx.restore();
   });
 
-  // purple box
-  if (purpleBox) {
+  // purple boxes
+  if (purpleBoxes.length) {
     ctx.save();
     ctx.shadowColor = '#a855f7';
     ctx.shadowBlur  = 8 + 5 * Math.sin(Date.now() / 300);
     ctx.fillStyle   = '#7e22ce';
-    ctx.beginPath();
-    ctx.roundRect(purpleBox.x * CELL + 1, purpleBox.y * CELL + 1, CELL - 2, CELL - 2, 3);
-    ctx.fill();
     ctx.strokeStyle = '#d8b4fe';
     ctx.lineWidth   = 1.5;
-    ctx.stroke();
+    purpleBoxes.forEach(b => {
+      ctx.beginPath();
+      ctx.roundRect(b.x * CELL + 1, b.y * CELL + 1, CELL - 2, CELL - 2, 3);
+      ctx.fill();
+      ctx.stroke();
+    });
     ctx.restore();
   }
 
