@@ -1,5 +1,10 @@
-// EXP threshold to reach level l: (l-1)*(l+3)  — no cap, extends infinitely
-function thresholdForLevel(l) { return (l - 1) * (l + 3); }
+// EXP threshold to reach level l:
+//   l ≤ 10 : (l-1)*(l+3)
+//   l > 10 : 117 + 42*(2^(l-10) - 1)  — gap doubles every level from 10+
+function thresholdForLevel(l) {
+  if (l <= 10) return (l - 1) * (l + 3);
+  return 117 + 42 * (Math.pow(2, l - 10) - 1);
+}
 const BASE_SPEED       = 130;
 const SPEED_STEP       = 10;  // ms removed per level, levels 1–9
 const SPEED_STEP_HARD  = 15;  // ms removed per level, levels 10+
@@ -191,7 +196,8 @@ function setGridSize(cols, rows) {
 
 // ── Level helpers ──────────────────────────────────────────────────────────
 function levelForExp(e) {
-  return Math.max(1, Math.floor(-1 + Math.sqrt(4 + e)));
+  if (e < 117) return Math.max(1, Math.floor(-1 + Math.sqrt(4 + e)));
+  return Math.max(10, 10 + Math.floor(Math.log2((e - 75) / 42)));
 }
 
 function speedForLevel(l) {
