@@ -36,7 +36,7 @@ const SKILL_DEFS = [
     desc: 'Add player level to EXP/fruit',
     cost: 80,
     maxLevel: 1,
-    requires: { id: 'extraFruit', level: 10 },
+    requires: { id: 'extraFruit', level: 5 },
   },
   {
     id: 'maxLives',
