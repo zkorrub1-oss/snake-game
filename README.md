@@ -1,5 +1,7 @@
 # Snake
 
+**[▶ Play the latest version](https://zkorrub1-oss.github.io/snake-game/)**
+
 A browser-based Snake game with RPG progression, a skill tree, enemies, and a leaderboard. No dependencies, no build step — just open `snake.html`.
 
 ## How to Play
