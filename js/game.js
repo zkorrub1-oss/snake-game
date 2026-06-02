@@ -123,9 +123,23 @@ const skillTreeEl  = document.getElementById('skill-tree');
 const stExpRateEl  = document.getElementById('st-exp-rate');
 const stFruitsEl   = document.getElementById('st-fruits');
 const stGridEl     = document.getElementById('st-skills-grid');
-const resetConfirm = document.getElementById('reset-confirm');
+const resetConfirm    = document.getElementById('reset-confirm');
+const leaderboardEl   = document.getElementById('leaderboard');
+const lbRunInfoEl     = document.getElementById('lb-run-info');
+const lbListEl        = document.getElementById('lb-list');
+const initialsSection = document.getElementById('initials-section');
+const initialsInput   = document.getElementById('initials-input');
 document.getElementById('btn-yes').addEventListener('click', confirmReset);
 document.getElementById('btn-no').addEventListener('click', cancelReset);
+
+// Persist initials across sessions
+let currentInitials = localStorage.getItem('snakeInitials') || '';
+if (currentInitials) initialsInput.value = currentInitials;
+initialsInput.addEventListener('input', () => {
+  initialsInput.value = initialsInput.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+  currentInitials = initialsInput.value;
+  localStorage.setItem('snakeInitials', currentInitials);
+});
 const testModeEl = document.getElementById('test-mode');
 document.getElementById('tm-apply').addEventListener('click', applyTestMode);
 document.getElementById('tm-cancel').addEventListener('click', closeTestMode);
@@ -426,10 +440,8 @@ function die() {
   clearInterval(purpleBoxTimer); purpleBoxTimer = null; purpleBox = null;
   if (skillTreeOpen) closeSkillTree(false);
   state = 'dead';
-  overlayTitle.textContent = 'GAME OVER';
-  overlayTitle.style.color = '#e06c75';
-  overlayMsg.textContent   = `SCORE: ${score}  ·  LEVEL: ${level}  ·  PRESS ENTER TO RETRY`;
-  overlay.classList.remove('hidden');
+  const rank = saveToLeaderboard();
+  showLeaderboard(rank);
   updatePuzzleLock();
 }
 
@@ -455,6 +467,7 @@ function closeSkillTree(resume = true) {
     overlayTitle.textContent = 'PAUSED';
     overlayTitle.style.color = '#4ecca3';
     overlayMsg.textContent   = 'PRESS P TO RESUME';
+    initialsSection.classList.add('hidden');
     overlay.classList.remove('hidden');
   }
 }
@@ -625,11 +638,13 @@ function showResetConfirm() {
 
 function confirmReset() {
   resetConfirm.classList.add('hidden');
+  leaderboardEl.classList.add('hidden');
   init();
   state = 'idle';
   overlayTitle.textContent = 'READY';
   overlayTitle.style.color = '#e06c75';
   overlayMsg.textContent   = 'PRESS ENTER TO START';
+  initialsSection.classList.remove('hidden');
   overlay.classList.remove('hidden');
   updatePuzzleLock();
 }
@@ -640,6 +655,7 @@ function cancelReset() {
   overlayTitle.textContent = 'PAUSED';
   overlayTitle.style.color = '#4ecca3';
   overlayMsg.textContent   = 'PRESS P TO RESUME';
+  initialsSection.classList.add('hidden');
   overlay.classList.remove('hidden');
   updatePuzzleLock();
 }
@@ -747,9 +763,69 @@ function applyTestMode() {
   restartInterval();
 }
 
+// ── Leaderboard ────────────────────────────────────────────────────────────
+function getLeaderboard() {
+  try { return JSON.parse(localStorage.getItem('snakeLeaderboard') || '[]'); }
+  catch(e) { return []; }
+}
+
+function saveToLeaderboard() {
+  if (testModeUsed || score === 0) return -1;
+  const initials = currentInitials || '???';
+  const lb = getLeaderboard();
+  const entry = { initials, score, level };
+  lb.push(entry);
+  lb.sort((a, b) => b.score - a.score);
+  const rank = lb.indexOf(entry); // 0-based, before splice
+  lb.splice(10);
+  localStorage.setItem('snakeLeaderboard', JSON.stringify(lb));
+  return rank;
+}
+
+function showLeaderboard(rank) {
+  const lb = getLeaderboard();
+  const initials = currentInitials || '???';
+  lbRunInfoEl.textContent = `${initials}  ·  SCORE: ${score}  ·  LEVEL: ${level}${testModeUsed ? '  ·  TEST' : ''}`;
+
+  let html = `<div class="lb-row lb-header">
+    <span class="lb-rank">#</span>
+    <span class="lb-name">NAME</span>
+    <span class="lb-score">SCORE</span>
+    <span class="lb-level">LVL</span>
+  </div>`;
+
+  if (lb.length === 0) {
+    html += `<div class="lb-row"><span style="color:#555577;font-size:0.62rem;letter-spacing:2px">NO SCORES YET</span></div>`;
+  } else {
+    lb.forEach((e, i) => {
+      const cur = rank >= 0 && i === rank;
+      html += `<div class="lb-row${cur ? ' lb-current' : ''}">
+        <span class="lb-rank">${i + 1}</span>
+        <span class="lb-name">${e.initials}</span>
+        <span class="lb-score">${e.score}</span>
+        <span class="lb-level">LV${e.level}</span>
+      </div>`;
+    });
+    if (rank >= 10) {
+      html += `<div class="lb-row lb-gap"><span style="color:#333355;font-size:0.6rem">···</span></div>
+      <div class="lb-row lb-current">
+        <span class="lb-rank">—</span>
+        <span class="lb-name">${initials}</span>
+        <span class="lb-score">${score}</span>
+        <span class="lb-level">LV${level}</span>
+      </div>`;
+    }
+  }
+
+  lbListEl.innerHTML = html;
+  leaderboardEl.classList.remove('hidden');
+}
+
 // ── Start / pause ──────────────────────────────────────────────────────────
 function startGame() {
   overlay.classList.add('hidden');
+  leaderboardEl.classList.add('hidden');
+  initialsSection.classList.add('hidden');
   const pending = puzzlePendingFruits;
   init();
   if (pending > 0) {
@@ -774,6 +850,7 @@ function togglePause() {
     overlayTitle.textContent = 'PAUSED';
     overlayTitle.style.color = '#4ecca3';
     overlayMsg.textContent   = 'PRESS P TO RESUME';
+    initialsSection.classList.add('hidden');
     overlay.classList.remove('hidden');
     updatePuzzleLock();
   } else if (state === 'paused') {
@@ -786,6 +863,11 @@ function togglePause() {
 
 // ── Input ──────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
+  // While typing initials, only blur on Enter — ignore all game keys
+  if (document.activeElement === initialsInput) {
+    if (e.key === 'Enter') initialsInput.blur();
+    return;
+  }
   // T×3 opens test mode from any state
   if (e.key === 't' || e.key === 'T') {
     const now = Date.now();

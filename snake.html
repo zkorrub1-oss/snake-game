@@ -32,6 +32,10 @@
       <div id="level-flash"></div>
       <div id="overlay" class="abs-overlay">
         <h2 id="overlay-title">READY</h2>
+        <div id="initials-section">
+          <label id="initials-label">YOUR INITIALS</label>
+          <input id="initials-input" maxlength="3" placeholder="AAA" autocomplete="off" spellcheck="false">
+        </div>
         <p id="overlay-msg">PRESS ENTER TO START</p>
       </div>
       <div id="skill-tree" class="hidden">
@@ -42,6 +46,12 @@
         </div>
         <div id="st-skills-grid"></div>
         <div id="st-footer">E OR ESC TO CLOSE</div>
+      </div>
+      <div id="leaderboard" class="abs-overlay hidden">
+        <div id="lb-title">GAME OVER</div>
+        <div id="lb-run-info"></div>
+        <div id="lb-list"></div>
+        <div id="lb-footer">PRESS ENTER TO PLAY AGAIN</div>
       </div>
       <div id="reset-confirm" class="hidden">
         <h2>RESET GAME?</h2>
@@ -106,6 +116,8 @@
   setGridSize(20, 20);
   init();
   updatePuzzleLock();
+  // initials section visible on start screen
+  document.getElementById('initials-section').classList.remove('hidden');
   function animLoop() { if (state === 'playing' && purpleBox) draw(); requestAnimationFrame(animLoop); }
   animLoop();
 </script>

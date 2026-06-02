@@ -174,6 +174,48 @@ canvas { display: block; border: 2px solid #4ecca3; box-shadow: 0 0 20px rgba(78
 
 #controls { margin-top: 12px; font-size: 0.75rem; letter-spacing: 1px; color: #555577; }
 
+/* ── Initials input ─────────────────────────────────────────────────────── */
+#initials-section {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  margin: 2px 0;
+}
+#initials-section.hidden { display: none; }
+#initials-label { font-size: 0.58rem; letter-spacing: 3px; color: #555577; }
+#initials-input {
+  background: #12122a; border: 1px solid #3a3a5a; color: #4ecca3;
+  font-family: 'Courier New', monospace; font-size: 1.2rem; letter-spacing: 8px;
+  text-align: center; text-transform: uppercase;
+  width: 84px; padding: 5px 8px; border-radius: 4px; outline: none;
+}
+#initials-input:focus { border-color: #4ecca3; }
+
+/* ── Leaderboard overlay ─────────────────────────────────────────────────── */
+#leaderboard {
+  z-index: 50; flex-direction: column;
+  padding: 14px 14px 10px; gap: 0; overflow-y: auto;
+}
+#lb-title { font-size: 1.3rem; letter-spacing: 4px; color: #e06c75; margin-bottom: 4px; }
+#lb-run-info { font-size: 0.68rem; letter-spacing: 2px; color: #a0a0c0; margin-bottom: 10px; }
+#lb-list { width: 100%; }
+.lb-row {
+  display: flex; align-items: center;
+  padding: 4px 6px; font-size: 0.7rem; letter-spacing: 1px; color: #a0a0c0;
+  border-bottom: 1px solid #16162a;
+}
+.lb-row.lb-header {
+  font-size: 0.58rem; letter-spacing: 2px; color: #555577;
+  border-bottom: 1px solid #2a2a4a; margin-bottom: 2px; padding-bottom: 5px;
+}
+.lb-row.lb-current { color: #4ecca3; background: #0a2218; border-radius: 3px; border-color: transparent; }
+.lb-row.lb-gap { border: none; padding: 4px 0; }
+.lb-rank  { width: 22px; flex-shrink: 0; }
+.lb-name  { width: 52px; flex-shrink: 0; letter-spacing: 4px; }
+.lb-score { flex: 1; text-align: right; color: #ffd700; }
+.lb-row.lb-current .lb-score { color: #4ecca3; }
+.lb-level { width: 44px; text-align: right; flex-shrink: 0; color: #555577; font-size: 0.62rem; }
+.lb-row.lb-current .lb-level { color: #4ecca380; }
+#lb-footer { margin-top: 10px; font-size: 0.62rem; letter-spacing: 2px; color: #2a2a4a; }
+
 /* ── Sliding puzzle ─────────────────────────────────────────────────────── */
 #puzzle-section {
   margin-top: 36px; margin-bottom: 40px;
