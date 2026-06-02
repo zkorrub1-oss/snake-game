@@ -216,6 +216,24 @@ canvas { display: block; border: 2px solid #4ecca3; box-shadow: 0 0 20px rgba(78
 .lb-row.lb-current .lb-level { color: #4ecca380; }
 #lb-footer { margin-top: 10px; font-size: 0.62rem; letter-spacing: 2px; color: #2a2a4a; }
 
+/* ── Donate ──────────────────────────────────────────────────────────────── */
+#donate-section {
+  margin-top: 32px; margin-bottom: 8px;
+  text-align: center; max-width: 320px; padding: 0 12px;
+}
+#donate-msg {
+  font-size: 0.62rem; letter-spacing: 1px; line-height: 1.7;
+  color: #3a3a5a; margin-bottom: 10px;
+}
+#donate-btn {
+  display: inline-block;
+  font-family: 'Courier New', monospace; font-size: 0.68rem; letter-spacing: 2px;
+  color: #4ecca3; border: 1px solid #2a4a3a; background: #0a1a12;
+  padding: 6px 16px; border-radius: 4px; text-decoration: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+#donate-btn:hover { background: #4ecca3; color: #0f0f1e; border-color: #4ecca3; }
+
 /* ── Sliding puzzle ─────────────────────────────────────────────────────── */
 #puzzle-section {
   margin-top: 36px; margin-bottom: 40px;
