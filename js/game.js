@@ -161,7 +161,7 @@ let COLS, ROWS, CELL;
 let snake, dir, nextDir, foods, maxFruits;
 let score, exp, best, lives, level, state, interval;
 let purpleBoxes = [], purpleBoxTimer = null, purpleBoxKills = 0;
-let redBox = null, redBoxTimer = null;
+let redBoxes = [], redBoxTimer = null;
 let skills, fruitsSpent;
 let skillTreeOpen = false;
 let prevState = null;
@@ -248,7 +248,7 @@ function init() {
   purpleBoxes      = [];
   clearInterval(purpleBoxTimer); purpleBoxTimer = null;
   purpleBoxKills   = 0;
-  redBox = null; clearInterval(redBoxTimer); redBoxTimer = null;
+  redBoxes = []; clearInterval(redBoxTimer); redBoxTimer = null;
   testModeUsed     = false;
   skills           = { tongue: 0, expBoost: 0 };
   fruitsSpent = 0;
@@ -278,7 +278,7 @@ function randomEmptyCell() {
     snake.some(s => s.x === pos.x && s.y === pos.y) ||
     foods.some(f => f.x === pos.x && f.y === pos.y) ||
     purpleBoxes.some(b => b.x === pos.x && b.y === pos.y) ||
-    (redBox && redBox.x === pos.x && redBox.y === pos.y)
+    redBoxes.some(b => b.x === pos.x && b.y === pos.y)
   );
   return pos;
 }
@@ -349,10 +349,11 @@ function checkLevelUp() {
     }
     const targetBoxes = Math.floor(level / 15);
     while (purpleBoxes.length < targetBoxes) purpleBoxes.push(randomEmptyCell());
-    if (level >= 50 && !redBoxTimer) {
-      redBox = randomEmptyCell();
-      redBoxTimer = setInterval(moveRedBox, 1000);
+    const targetRed = Math.max(0, Math.floor((level - 30) / 20));
+    if (targetRed > 0 && !redBoxTimer) {
+      redBoxTimer = setInterval(moveRedBoxes, 1000);
     }
+    while (redBoxes.length < targetRed) redBoxes.push(randomEmptyCell());
   }
   updateLevelPanels();
 }
@@ -393,34 +394,39 @@ function movePurpleBoxes() {
   draw();
 }
 
-function moveRedBox() {
-  if (!redBox || state !== 'playing') return;
+function moveRedBoxes() {
+  if (state !== 'playing') return;
   const head = snake[0];
-  // Pick the direction that moves closest to the snake head (Manhattan)
-  const dirs = [[0,-1],[0,1],[-1,0],[1,0]];
-  dirs.sort((a, b) => {
-    const da = Math.abs((redBox.x + a[0]) - head.x) + Math.abs((redBox.y + a[1]) - head.y);
-    const db = Math.abs((redBox.x + b[0]) - head.x) + Math.abs((redBox.y + b[1]) - head.y);
-    return da - db;
-  });
-  for (const [dx, dy] of dirs) {
-    const nx = redBox.x + dx, ny = redBox.y + dy;
-    if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
-    if (snake.some(s => s.x === nx && s.y === ny)) {
-      redBox = null;
-      const reward = 5 + expPerFruit() * 2;
-      exp += reward;
-      showBanner(`🔴 +${reward.toFixed(1)} EXP`, '#ef4444');
-      checkLevelUp();
-      if (skillTreeOpen) renderSkillTree();
-      draw();
-      setTimeout(() => { if (redBoxTimer) redBox = randomEmptyCell(); }, 20000);
-      return;
+  for (let i = redBoxes.length - 1; i >= 0; i--) {
+    const box = redBoxes[i];
+    const dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+    dirs.sort((a, b) => {
+      const da = Math.abs((box.x + a[0]) - head.x) + Math.abs((box.y + a[1]) - head.y);
+      const db = Math.abs((box.x + b[0]) - head.x) + Math.abs((box.y + b[1]) - head.y);
+      return da - db;
+    });
+    for (const [dx, dy] of dirs) {
+      const nx = box.x + dx, ny = box.y + dy;
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      if (snake.some(s => s.x === nx && s.y === ny)) {
+        redBoxes.splice(i, 1);
+        const reward = 5 + expPerFruit() * 2;
+        exp += reward;
+        showBanner(`🔴 +${reward.toFixed(1)} EXP`, '#ef4444');
+        checkLevelUp();
+        if (skillTreeOpen) renderSkillTree();
+        draw();
+        setTimeout(() => {
+          if (redBoxTimer && redBoxes.length < Math.max(0, Math.floor((level - 30) / 20)))
+            redBoxes.push(randomEmptyCell());
+        }, 20000);
+        break;
+      }
+      redBoxes[i] = { x: nx, y: ny };
+      break;
     }
-    redBox = { x: nx, y: ny };
-    draw();
-    return;
   }
+  draw();
 }
 
 function flashLevel() {
@@ -441,7 +447,7 @@ function step() {
     loseLife(); return;
   }
   if (purpleBoxes.some(b => b.x === head.x && b.y === head.y) ||
-      (redBox && head.x === redBox.x && head.y === redBox.y)) {
+      redBoxes.some(b => b.x === head.x && b.y === head.y)) {
     loseLife(); return;
   }
 
@@ -491,7 +497,7 @@ function loseLife() {
 function die() {
   clearInterval(interval);
   clearInterval(purpleBoxTimer); purpleBoxTimer = null; purpleBoxes = [];
-  clearInterval(redBoxTimer); redBoxTimer = null; redBox = null;
+  clearInterval(redBoxTimer); redBoxTimer = null; redBoxes = [];
   if (skillTreeOpen) closeSkillTree(false);
   state = 'dead';
   const rank = saveToLeaderboard();
@@ -636,17 +642,19 @@ function draw() {
     ctx.restore();
   });
 
-  // red box (chaser)
-  if (redBox) {
+  // red boxes (chasers)
+  if (redBoxes.length) {
     ctx.save();
     ctx.shadowColor = '#ef4444';
     ctx.shadowBlur  = 8 + 5 * Math.sin(Date.now() / 200);
     ctx.fillStyle   = '#991b1b';
     ctx.strokeStyle = '#fca5a5';
     ctx.lineWidth   = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(redBox.x * CELL + 1, redBox.y * CELL + 1, CELL - 2, CELL - 2, 3);
-    ctx.fill(); ctx.stroke();
+    redBoxes.forEach(b => {
+      ctx.beginPath();
+      ctx.roundRect(b.x * CELL + 1, b.y * CELL + 1, CELL - 2, CELL - 2, 3);
+      ctx.fill(); ctx.stroke();
+    });
     ctx.restore();
   }
 

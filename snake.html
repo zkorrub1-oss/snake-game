@@ -123,7 +123,7 @@
   updatePuzzleLock();
   // initials section visible on start screen
   document.getElementById('initials-section').classList.remove('hidden');
-  function animLoop() { if (state === 'playing' && (purpleBoxes.length || redBox)) draw(); requestAnimationFrame(animLoop); }
+  function animLoop() { if (state === 'playing' && (purpleBoxes.length || redBoxes.length)) draw(); requestAnimationFrame(animLoop); }
   animLoop();
 </script>
 </body>
