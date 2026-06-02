@@ -53,7 +53,7 @@ const SKILL_DEFS = [
     icon: '⬛',
     desc: 'Expand the map by one layer (same as the level-up power-up)',
     cost: 20,
-    maxLevel: 20,
+    maxLevel: 3,
     requires: { id: 'levelSynergy', level: 1 },
   },
   {
