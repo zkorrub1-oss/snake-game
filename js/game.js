@@ -76,6 +76,15 @@ const SKILL_DEFS = [
     requires: { id: 'tongue', level: 1 },
   },
   {
+    id: 'patience',
+    name: 'PATIENCE',
+    icon: '⏳',
+    desc: 'Earn 1 more EXP per fruit (stackable)',
+    cost: 10,
+    maxLevel: 5,
+    requires: { id: 'slowDown', level: 5 },
+  },
+  {
     id: 'quickRespawn',
     name: 'HAUNTING',
     icon: '🟣',
@@ -132,7 +141,7 @@ bestEl.textContent = best;
 let testModeUsed = false;
 
 function expPerFruit() {
-  let val = 1.0 + (skills.expBoost || 0);
+  let val = 1.0 + (skills.expBoost || 0) + (skills.patience || 0);
   if (skills.levelSynergy > 0) val += level;
   return val;
 }
