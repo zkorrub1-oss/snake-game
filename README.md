@@ -44,10 +44,6 @@ Touch: swipe to steer, tap to start.
 
 - **Red box** — Spawns at level 50 and chases directly toward your head every 1s. One additional box every 20 levels (level 70 → 2, level 90 → 3, …). Same kill/EXP mechanic as purple, but respawns after 20s.
 
-## Sliding Puzzle
-
-Scroll below the game while idle or paused to find a 3×3 sliding puzzle. Solve it to earn **+10 fruits and EXP** — once per run. The reward is applied immediately when paused, or carried into the next game start if solved on the idle screen.
-
 ## Leaderboard
 
 Enter up to 3 initials on the start screen. Your top-10 scores are saved locally and shown on the leaderboard every time you die.
@@ -61,6 +57,3 @@ Enter up to 3 initials on the start screen. Your top-10 scores are saved locally
 | `js/game.js` | Core game logic, rendering, skills, enemies |
 | `js/puzzle.js` | Sliding puzzle feature |
 
-## Test Mode
-
-Press **T three times within 2 seconds** from any state to open test mode. Set snake length, level, lives, fruits, and skill levels freely. Test-mode scores are not saved to the leaderboard.
