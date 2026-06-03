@@ -218,18 +218,20 @@ canvas { display: block; border: 2px solid #4ecca3; box-shadow: 0 0 20px rgba(78
 
 /* ── Donate ──────────────────────────────────────────────────────────────── */
 #donate-section {
-  margin-top: 32px; margin-bottom: 8px;
-  text-align: center; max-width: 320px; padding: 0 12px;
+  position: fixed; right: 14px; top: 50%; transform: translateY(-50%);
+  width: 112px; text-align: center;
+  background: #0d0d1e; border: 1px solid #1e1e38; border-radius: 6px;
+  padding: 12px 8px; z-index: 10;
 }
 #donate-msg {
-  font-size: 0.62rem; letter-spacing: 1px; line-height: 1.7;
+  font-size: 0.58rem; letter-spacing: 0.5px; line-height: 1.65;
   color: #3a3a5a; margin-bottom: 10px;
 }
 #donate-btn {
   display: inline-block;
-  font-family: 'Courier New', monospace; font-size: 0.68rem; letter-spacing: 2px;
+  font-family: 'Courier New', monospace; font-size: 0.62rem; letter-spacing: 1px;
   color: #4ecca3; border: 1px solid #2a4a3a; background: #0a1a12;
-  padding: 6px 16px; border-radius: 4px; text-decoration: none;
+  padding: 5px 10px; border-radius: 4px; text-decoration: none;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 #donate-btn:hover { background: #4ecca3; color: #0f0f1e; border-color: #4ecca3; }
