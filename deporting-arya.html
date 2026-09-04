@@ -102,6 +102,57 @@ canvas { display: block; cursor: crosshair; }
 .o-stat { color: #7d8ba8; font-size: 15px; line-height: 2; margin-bottom: 24px; }
 .o-stat span { color: #7cc4ff; font-weight: bold; }
 #go .o-title { color: #ff6b81; text-shadow: 0 0 26px rgba(255, 80, 110, .3); }
+
+/* ── skill tree ── */
+#skills { overflow-y: auto; justify-content: flex-start; padding: 34px 20px; }
+#skills .o-title { color: #7cc4ff; text-shadow: 0 0 26px rgba(90,180,255,.3); font-size: clamp(26px, 4.4vw, 40px); }
+.sp-bar { color: #7d8ba8; font-size: 13px; letter-spacing: .06em; margin-bottom: 20px; }
+.sp-bar b { color: #ffd166; font-size: 17px; }
+.tree { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-bottom: 22px; }
+.branch {
+  width: 252px;
+  border: 1px solid #212a40;
+  border-radius: 12px;
+  padding: 13px 12px;
+  background: rgba(14, 19, 30, .72);
+}
+.b-name {
+  font-size: 11px; letter-spacing: .18em; text-align: center;
+  color: var(--c); margin-bottom: 11px; font-weight: bold;
+}
+.node {
+  border: 1px solid #263049;
+  border-left: 3px solid #263049;
+  border-radius: 7px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #111725;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .12s, transform .12s, background .12s;
+}
+.node.afford { border-color: var(--c); border-left-color: var(--c); background: #141d2c; }
+.node.afford:hover { transform: translateY(-1px); background: #182238; }
+.node.locked, .node.maxed { cursor: default; }
+.node.locked { opacity: .42; }
+.node.maxed { border-left-color: var(--c); opacity: .8; }
+.n-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.n-name { font-size: 12px; font-weight: bold; color: #cfe0ff; letter-spacing: .02em; }
+.n-cost { font-size: 10px; color: #667088; white-space: nowrap; }
+.node.afford .n-cost { color: #ffd166; }
+.n-desc { font-size: 10.5px; color: #7d8ba8; line-height: 1.5; margin-top: 4px; }
+.n-req { font-size: 10px; color: #ff8a5c; margin-top: 3px; }
+.pips { display: flex; gap: 3px; margin-top: 6px; }
+.pip { width: 100%; height: 3px; border-radius: 2px; background: #232c42; }
+.pip.on { background: var(--c); }
+.sk-go {
+  border: 1px solid #33405e; border-radius: 8px;
+  padding: 10px 26px; color: #8ee6a0; background: #161d2c;
+  font: bold 13px 'Courier New', monospace; letter-spacing: .12em;
+  cursor: pointer; transition: background .12s, border-color .12s;
+}
+.sk-go:hover { background: #1d2740; border-color: #8ee6a0; }
+.sk-hint { color: #39415a; font-size: 11px; margin-top: 12px; letter-spacing: .04em; }
 </style>
 </head>
 <body>
@@ -112,8 +163,9 @@ canvas { display: block; cursor: crosshair; }
   <div class="h-item"><span class="h-label">DEPORTED</span><span class="h-val" id="hDep">0</span></div>
   <div class="h-item"><span class="h-label">SCORE</span><span class="h-val" id="hScore">0</span></div>
   <div class="h-item"><span class="h-label">AGENT</span><span id="hearts">♥♥♥</span></div>
+  <div class="h-item"><span class="h-label">SP</span><span class="h-val" id="hSP">0</span></div>
 </div>
-<div id="info">WASD / ARROWS move &nbsp;·&nbsp; MOUSE aim &nbsp;·&nbsp; HOLD CLICK to fire banishment beam &nbsp;·&nbsp; SPACE dash</div>
+<div id="info">WASD / ARROWS move &nbsp;·&nbsp; MOUSE aim &nbsp;·&nbsp; HOLD CLICK to fire banishment beam &nbsp;·&nbsp; SPACE dash &nbsp;·&nbsp; E skill tree</div>
 
 <div class="overlay show" id="title">
   <div class="o-title">DEPORTING ARYA</div>
@@ -125,9 +177,11 @@ canvas { display: block; cursor: crosshair; }
     You are a field agent of the <b>Bureau of Interdimensional Affairs</b>. Hold your beam on Arya to drain her <b>VISA</b> meter to zero
     and a portal will open to take her home.<br><br>
     <span class="key">WASD</span> move &nbsp; <span class="key">MOUSE</span> aim &nbsp;
-    <span class="key">HOLD CLICK</span> beam &nbsp; <span class="key">SPACE</span> dash<br><br>
+    <span class="key">HOLD CLICK</span> beam &nbsp; <span class="key">SPACE</span> dash &nbsp; <span class="key">E</span> skill tree<br><br>
     The beam <b>overheats</b>, so pace it. It's blocked by <b>pillars</b>, so get an angle.
-    From level 3 she deploys <b>decoys</b> — beaming a fake just cooks your emitter.
+    From level 3 she deploys <b>decoys</b> — beaming a fake just cooks your emitter.<br><br>
+    Every deportation earns a <b>skill point</b>. Spend them in the <b>skill tree</b> between levels
+    (or press <span class="key">E</span> any time) to upgrade your emitter, your agent, and the paperwork working against her.
   </div>
   <div class="o-start">CLICK OR PRESS ENTER TO BEGIN</div>
 </div>
@@ -141,6 +195,14 @@ canvas { display: block; cursor: crosshair; }
     Final score: <span id="goScore">0</span>
   </div>
   <div class="o-start">CLICK OR PRESS ENTER TO TRY AGAIN</div>
+</div>
+
+<div class="overlay" id="skills">
+  <div class="o-title">SKILL TREE</div>
+  <div class="sp-bar">SKILL POINTS: <b id="skPts">0</b></div>
+  <div class="tree" id="skTree"></div>
+  <button class="sk-go" id="skGo">CONTINUE</button>
+  <div class="sk-hint">ENTER or E to continue &nbsp;·&nbsp; unspent points carry over</div>
 </div>
 
 <script>
@@ -228,7 +290,13 @@ let mx = 0, my = 0, mdown = false;
 addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'Space') e.preventDefault();
-  if (e.code === 'Enter' || e.code === 'NumpadEnter') tryStart();
+  if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+    if (state === 'skills') closeSkills(); else tryStart();
+  }
+  if (e.code === 'KeyE') {
+    if (state === 'skills') closeSkills();
+    else if (state === 'play') openSkills('play');
+  }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 cv.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
@@ -251,11 +319,150 @@ let portal = null;
 const PLAYER_SPD = 268, DASH_SPD = 850, DASH_TIME = 0.13, DASH_CD = 1.05;
 const BEAM_RANGE = 620, BEAM_W = 13, DRAIN = 33, HEAT_UP = 40, HEAT_DN = 34;
 
+/* ────────────────────────── skill tree ────────────────────── */
+const BRANCHES = [
+  { id: 'beam',   name: 'EMITTER', color: '#8ee6a0' },
+  { id: 'agent',  name: 'AGENT',   color: '#5ad1ff' },
+  { id: 'bureau', name: 'BUREAU',  color: '#ffd166' },
+];
+
+const SKILLS = [
+  // EMITTER
+  { id: 'focus',   b: 'beam', name: 'Focused Emitter', max: 3, cost: 1,
+    desc: r => '+' + (20 * r) + '% visa drain rate' },
+  { id: 'coolant', b: 'beam', name: 'Coolant Loop', max: 3, cost: 1,
+    desc: r => '-' + (12 * r) + '% emitter heat buildup' },
+  { id: 'optics',  b: 'beam', name: 'Long Optics', max: 2, cost: 1, req: ['focus', 1],
+    desc: r => '+' + (110 * r) + ' beam range' },
+  { id: 'vent',    b: 'beam', name: 'Vent Override', max: 2, cost: 1, req: ['coolant', 2],
+    desc: r => '+' + (25 * r) + '% venting speed, shorter overheat lockout' },
+  { id: 'lens',    b: 'beam', name: 'Discernment Lens', max: 1, cost: 2, req: ['optics', 1],
+    desc: () => 'popping a decoy no longer cooks the emitter, and pops 40% faster' },
+
+  // AGENT
+  { id: 'boots',   b: 'agent', name: 'Field Boots', max: 3, cost: 1,
+    desc: r => '+' + (10 * r) + '% move speed' },
+  { id: 'cap',     b: 'agent', name: 'Dash Capacitor', max: 2, cost: 1,
+    desc: r => '-' + (22 * r) + '% dash cooldown' },
+  { id: 'vest',    b: 'agent', name: 'Kevlar Windbreaker', max: 2, cost: 2,
+    desc: r => '+' + r + ' max heart' + (r > 1 ? 's' : '') + ' (refills one on purchase)' },
+  { id: 'phase',   b: 'agent', name: 'Phase Dash', max: 1, cost: 2, req: ['cap', 1],
+    desc: () => 'untouchable for the length of a dash' },
+  { id: 'adrenal', b: 'agent', name: 'Adrenal Response', max: 2, cost: 1, req: ['boots', 2],
+    desc: r => '+' + (0.5 * r).toFixed(1) + 's invulnerability after taking a hit' },
+
+  // BUREAU
+  { id: 'tape',    b: 'bureau', name: 'Red Tape', max: 2, cost: 1,
+    desc: r => 'Arya blinks ' + (20 * r) + '% less often' },
+  { id: 'jam',     b: 'bureau', name: 'Paperwork Jam', max: 2, cost: 1,
+    desc: r => 'Arya fires ' + (22 * r) + '% slower' },
+  { id: 'audit',   b: 'bureau', name: 'Visa Audit', max: 3, cost: 1,
+    desc: r => 'Arya starts each level with ' + (7 * r) + '% less visa' },
+  { id: 'tag',     b: 'bureau', name: 'Tracer Tag', max: 1, cost: 2, req: ['audit', 1],
+    desc: () => 'tagged visa keeps draining for 1.2s after you break the beam' },
+  { id: 'over',    b: 'bureau', name: 'Overtime Pay', max: 2, cost: 1, req: ['jam', 1],
+    desc: r => '+' + (25 * r) + '% score from every source' },
+];
+const SKILL_BY_ID = Object.create(null);
+for (const s of SKILLS) SKILL_BY_ID[s.id] = s;
+
+let sk = Object.create(null), points = 0, skillsReturn = 'play';
+let M = {};
+
+function rank(id) { return sk[id] || 0; }
+function reqMet(s) { return !s.req || rank(s.req[0]) >= s.req[1]; }
+
+function recalc() {
+  M = {
+    drain:    DRAIN * (1 + 0.20 * rank('focus')),
+    heatUp:   HEAT_UP * (1 - 0.12 * rank('coolant')),
+    heatDn:   HEAT_DN * (1 + 0.25 * rank('vent')),
+    ventTo:   26 + 12 * rank('vent'),
+    range:    BEAM_RANGE + 110 * rank('optics'),
+    lens:     rank('lens') > 0,
+    popTime:  rank('lens') > 0 ? 0.25 : 0.42,
+    spd:      PLAYER_SPD * (1 + 0.10 * rank('boots')),
+    dashCd:   DASH_CD * (1 - 0.22 * rank('cap')),
+    phase:    rank('phase') > 0,
+    invBonus: 0.5 * rank('adrenal'),
+    maxHearts: 3 + rank('vest'),
+    blinkMul: 1 + 0.20 * rank('tape'),
+    fireMul:  1 + 0.22 * rank('jam'),
+    visaMax:  100 * (1 - 0.07 * rank('audit')),
+    tag:      rank('tag') > 0,
+    scoreMul: 1 + 0.25 * rank('over'),
+  };
+}
+recalc();
+
+function canBuy(s) {
+  return rank(s.id) < s.max && reqMet(s) && points >= s.cost;
+}
+
+function buySkill(id) {
+  const s = SKILL_BY_ID[id];
+  if (!s || !canBuy(s)) return;
+  points -= s.cost;
+  sk[id] = rank(id) + 1;
+  recalc();
+  if (id === 'vest') player.hearts = Math.min(M.maxHearts, player.hearts + 1);
+  blip(520, 0.12, 'square', 0.13, 900);
+  renderSkills();
+}
+
+function renderSkills() {
+  document.getElementById('skPts').textContent = points;
+  const tree = document.getElementById('skTree');
+  let html = '';
+  for (const b of BRANCHES) {
+    html += '<div class="branch" style="--c:' + b.color + '"><div class="b-name">' + b.name + '</div>';
+    for (const s of SKILLS) {
+      if (s.b !== b.id) continue;
+      const r = rank(s.id), maxed = r >= s.max, locked = !reqMet(s);
+      const cls = maxed ? 'maxed' : locked ? 'locked' : canBuy(s) ? 'afford' : '';
+      let pips = '';
+      for (let i = 0; i < s.max; i++) pips += '<div class="pip' + (i < r ? ' on' : '') + '"></div>';
+      html += '<div class="node ' + cls + '" data-id="' + s.id + '">' +
+        '<div class="n-top"><span class="n-name">' + s.name + '</span>' +
+        '<span class="n-cost">' + (maxed ? 'MAX' : s.cost + ' SP') + '</span></div>' +
+        '<div class="n-desc">' + s.desc(maxed ? s.max : r + 1) + '</div>' +
+        (locked ? '<div class="n-req">needs ' + SKILL_BY_ID[s.req[0]].name + ' ' + s.req[1] + '</div>' : '') +
+        '<div class="pips">' + pips + '</div></div>';
+    }
+    html += '</div>';
+  }
+  tree.innerHTML = html;
+}
+
+document.getElementById('skTree').addEventListener('click', e => {
+  const n = e.target.closest('.node');
+  if (n) buySkill(n.dataset.id);
+});
+document.getElementById('skGo').addEventListener('click', closeSkills);
+
+function openSkills(ret) {
+  skillsReturn = ret;
+  state = 'skills';
+  mdown = false;
+  setBeamSound(false, 0);
+  renderSkills();
+  document.getElementById('skills').classList.add('show');
+}
+
+function closeSkills() {
+  if (state !== 'skills') return;
+  document.getElementById('skills').classList.remove('show');
+  mdown = false;
+  if (skillsReturn === 'next') buildLevel();
+  state = 'play';
+}
+
+
 function cfg(n) {
   return {
     speed:     158 + n * 13,
-    blinkEvery: Math.max(1.5, 4.4 - n * 0.24),
-    fireEvery:  Math.max(0.5, 2.1 - n * 0.14),
+    blinkEvery: Math.max(1.5, 4.4 - n * 0.24) * M.blinkMul,
+    fireEvery:  Math.max(0.5, 2.1 - n * 0.14) * M.fireMul,
     shotSpd:    215 + n * 13,
     decoys:     n >= 3 ? Math.min(5, Math.floor((n - 1) / 2)) : 0,
     pillars:    Math.min(8, 3 + Math.floor(n / 2)),
@@ -295,8 +502,8 @@ function buildLevel() {
   const spot = farPoint(player.x, player.y, Math.min(400, Math.min(W, H) * 0.5), 16);
   arya = {
     x: spot.x, y: spot.y, vx: 0, vy: 0, r: 15,
-    visa: 100, blinkT: c.blinkEvery, fireT: c.fireEvery * 0.7,
-    hitT: 0, seed: rand(0, 100), wob: 0, spawnT: 0.5,
+    visa: M.visaMax, blinkT: c.blinkEvery, fireT: c.fireEvery * 0.7,
+    hitT: 0, mark: 0, seed: rand(0, 100), wob: 0, spawnT: 0.5,
   };
 
   decoys = []; shots = []; portal = null;
@@ -312,9 +519,11 @@ function spawnDecoy() {
 function resetGame() {
   const a = arena();
   player.x = (a.x0 + a.x1) / 2; player.y = (a.y0 + a.y1) / 2;
-  player.vx = player.vy = 0; player.hearts = 3; player.inv = 0;
+  sk = Object.create(null); points = 0; recalc();
+  player.vx = player.vy = 0; player.hearts = M.maxHearts; player.inv = 0;
   player.dashCd = 0; player.dashT = 0;
   level = 1; deported = 0; score = 0; parts = []; shake = 0; flash = 0;
+  document.getElementById('skills').classList.remove('show');
   buildLevel();
 }
 
@@ -381,8 +590,9 @@ function updatePlayer(dt) {
   player.dashCd = Math.max(0, player.dashCd - dt);
   if (player.dashT > 0) player.dashT -= dt;
   if (keys.Space && player.dashCd <= 0 && player.dashT <= 0 && m > 0) {
-    player.dashT = DASH_TIME; player.dashCd = DASH_CD;
+    player.dashT = DASH_TIME; player.dashCd = M.dashCd;
     player.vx = ix * DASH_SPD; player.vy = iy * DASH_SPD;
+    if (M.phase) player.inv = Math.max(player.inv, DASH_TIME + 0.1);
     burst(player.x, player.y, 12, '#5ad1ff', 190, 3.4, 0.4);
     blip(520, 0.1, 'sine', 0.1, 200);
   }
@@ -390,7 +600,7 @@ function updatePlayer(dt) {
   if (player.dashT > 0) {
     burst(player.x, player.y, 2, '#3fa9ff', 40, 2.6, 0.3);
   } else {
-    const spd = PLAYER_SPD;
+    const spd = M.spd;
     player.vx += (ix * spd - player.vx) * Math.min(1, dt * 16);
     player.vy += (iy * spd - player.vy) * Math.min(1, dt * 16);
   }
@@ -451,6 +661,13 @@ function updateArya(dt, c) {
   arya.blinkT -= dt * (arya.hitT > 0 ? 2.8 : 1);
   if (arya.blinkT <= 0) blinkArya(c);
 
+  if (arya.mark > 0) {                             // Tracer Tag residual drain
+    arya.mark -= dt;
+    arya.visa -= M.drain * 0.35 * dt;
+    if (Math.random() < dt * 14) burst(arya.x, arya.y, 1, '#8ee6a0', 70, 2, 0.4);
+    if (arya.visa <= 0) { arya.visa = 0; banish(); return; }
+  }
+
   arya.fireT -= dt;
   if (arya.fireT <= 0) {
     arya.fireT = c.fireEvery * rand(0.8, 1.25);
@@ -478,7 +695,7 @@ function updateShots(dt) {
     }
     if (!dead && player.inv <= 0 && Math.hypot(s.x - player.x, s.y - player.y) < player.r + s.r) {
       dead = true;
-      player.hearts--; player.inv = 1.5; shake = 15; flash = 0.5;
+      player.hearts--; player.inv = 1.5 + M.invBonus; shake = 15; flash = 0.5;
       burst(player.x, player.y, 26, '#ff5f7e', 250, 4, 0.6);
       blip(150, 0.3, 'square', 0.2, 60);
       if (player.hearts <= 0) endGame();
@@ -489,12 +706,12 @@ function updateShots(dt) {
 
 function updateBeam(dt, c) {
   beamOn = false;
-  if (overheat) { heat -= HEAT_DN * 1.15 * dt; if (heat <= 26) overheat = false; }
+  if (overheat) { heat -= M.heatDn * 1.15 * dt; if (heat <= M.ventTo) overheat = false; }
   else if (mdown && state === 'play') {
     beamOn = true;
-    heat += HEAT_UP * dt;
+    heat += M.heatUp * dt;
     if (heat >= 100) { heat = 100; overheat = true; blip(120, 0.4, 'sawtooth', 0.18, 55); }
-  } else heat -= HEAT_DN * dt;
+  } else heat -= M.heatDn * dt;
   heat = clamp(heat, 0, 100);
   setBeamSound(beamOn, heat / 100);
 
@@ -504,7 +721,7 @@ function updateBeam(dt, c) {
   const ox = player.x + dx * (player.r + 8), oy = player.y + dy * (player.r + 8);
 
   // clip on walls
-  let len = BEAM_RANGE;
+  let len = M.range;
   const a = arena();
   if (dx > 0.0001) len = Math.min(len, (a.x1 - ox) / dx);
   if (dx < -0.0001) len = Math.min(len, (a.x0 - ox) / dx);
@@ -520,10 +737,10 @@ function updateBeam(dt, c) {
     if (rayCircle(ox, oy, dx, dy, d.x, d.y, d.r + BEAM_W * 0.5) <= beamLen) {
       d.pop += dt;
       burst(d.x, d.y, 1, '#ffd166', 80, 2.4, 0.3);
-      if (d.pop > 0.42) {
+      if (d.pop > M.popTime) {
         burst(d.x, d.y, 30, '#ffd166', 260, 4, 0.6);
         decoys.splice(i, 1);
-        heat = Math.min(100, heat + 22);
+        if (!M.lens) heat = Math.min(100, heat + 22);
         shake = 8;
         blip(240, 0.25, 'square', 0.14, 90);
         setTimeout(() => { if (state === 'play') spawnDecoy(); }, 2200);
@@ -533,8 +750,9 @@ function updateBeam(dt, c) {
 
   if (arya.spawnT <= 0 &&
       rayCircle(ox, oy, dx, dy, arya.x, arya.y, arya.r + BEAM_W * 0.5) <= beamLen) {
-    arya.visa -= DRAIN * dt;
+    arya.visa -= M.drain * dt;
     arya.hitT = 0.14;
+    if (M.tag) arya.mark = 1.2;
     burst(arya.x, arya.y, 2, '#8ee6a0', 130, 2.8, 0.35);
     shake = Math.max(shake, 3);
     if (arya.visa <= 0) { arya.visa = 0; banish(); }
@@ -553,7 +771,8 @@ function banish() {
   mdown = false;
   setBeamSound(false, 0);
   deported++;
-  score += 500 + level * 150 + player.hearts * 120;
+  score += (500 + level * 150 + player.hearts * 120) * M.scoreMul;
+  points += 1 + (level % 3 === 0 ? 1 : 0);
   blip(300, 0.5, 'sine', 0.2, 1200);
   setTimeout(() => blip(600, 0.4, 'sine', 0.16, 1600), 130);
 }
@@ -600,23 +819,25 @@ function update(dt) {
     for (const d of decoys) steer(d, { speed: c.speed * 0.82 }, 0.8, dt);
     updateShots(dt);
     updateBeam(dt, c);
-    score += dt * 6;
+    score += dt * 6 * M.scoreMul;
   } else if (state === 'clear') {
     updatePlayer(dt);
     updateShots(dt);
     portal.t += dt;
     if (portal.t < 1.1) vortex(portal.x, portal.y, 3);
     clearT -= dt;
-    if (clearT <= 0) { level++; buildLevel(); state = 'play'; }
-  } else if (state === 'title' || state === 'over') {
+    if (clearT <= 0) { level++; openSkills('next'); }
+  } else if (state === 'title' || state === 'over' || state === 'skills') {
     setBeamSound(false, 0);
   }
 
   document.getElementById('hLevel').textContent = level;
   document.getElementById('hDep').textContent = deported;
   document.getElementById('hScore').textContent = Math.floor(score);
+  document.getElementById('hSP').textContent = points;
   const hp = Math.max(0, player.hearts);
-  document.getElementById('hearts').textContent = '♥'.repeat(hp) + '·'.repeat(3 - hp);
+  document.getElementById('hearts').textContent =
+    '♥'.repeat(hp) + '·'.repeat(Math.max(0, M.maxHearts - hp));
 }
 
 /* ────────────────────────── drawing ───────────────────────── */
@@ -710,14 +931,14 @@ function drawGremlin(e, isReal) {
     const bw = 46, bh = 5, bx = e.x - bw / 2, by = e.y - r - 24;
     ctx.fillStyle = 'rgba(8,12,20,0.85)';
     ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
-    const pct = e.visa / 100;
+    const pct = e.visa / M.visaMax;
     ctx.fillStyle = pct > 0.5 ? '#ff6b81' : pct > 0.22 ? '#ffb347' : '#8ee6a0';
     ctx.fillRect(bx, by, bw * pct, bh);
     ctx.strokeStyle = '#39465f'; ctx.lineWidth = 1;
     ctx.strokeRect(bx - 1.5, by - 1.5, bw + 3, bh + 3);
   } else if (e.pop > 0) {
     ctx.strokeStyle = 'rgba(255,209,102,0.9)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 7, -Math.PI / 2, -Math.PI / 2 + TAU * (e.pop / 0.42));
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 7, -Math.PI / 2, -Math.PI / 2 + TAU * (e.pop / M.popTime));
     ctx.stroke();
   }
 }
