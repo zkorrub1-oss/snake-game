@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deporting Arya</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #07090e;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: 'Courier New', monospace;
+}
+canvas { display: block; cursor: crosshair; }
+
+#hud {
+  position: fixed;
+  top: 14px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 14, 22, 0.9);
+  border: 1px solid #26304a;
+  border-radius: 10px;
+  padding: 9px 22px;
+  color: #c9d1d9;
+  font: 13px/1 'Courier New', monospace;
+  display: flex;
+  gap: 26px;
+  align-items: center;
+  pointer-events: none;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+}
+.h-item { display: flex; align-items: center; gap: 8px; }
+.h-label { color: #667088; letter-spacing: .05em; }
+.h-val { color: #7cc4ff; font-weight: bold; }
+#hearts { color: #ff5f7e; letter-spacing: 2px; font-size: 15px; }
+
+#info {
+  position: fixed;
+  bottom: 12px; left: 50%;
+  transform: translateX(-50%);
+  color: #39415a;
+  font: 11px 'Courier New', monospace;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: .04em;
+}
+
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(4, 6, 12, 0.9);
+  backdrop-filter: blur(7px);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #c9d1d9;
+  text-align: center;
+  padding: 20px;
+}
+.overlay.show { display: flex; }
+.o-title {
+  font-size: clamp(34px, 7vw, 62px);
+  font-weight: bold;
+  letter-spacing: .04em;
+  color: #8ee6a0;
+  text-shadow: 0 0 26px rgba(80, 220, 130, .35);
+  margin-bottom: 6px;
+}
+.o-sub { color: #7d8ba8; font-size: 14px; margin-bottom: 26px; letter-spacing: .05em; }
+.o-body {
+  max-width: 560px;
+  color: #9aa7c0;
+  font-size: 13px;
+  line-height: 1.9;
+  text-align: left;
+  border: 1px solid #212a40;
+  border-radius: 10px;
+  padding: 18px 22px;
+  background: rgba(14, 19, 30, .7);
+  margin-bottom: 26px;
+}
+.o-body b { color: #7cc4ff; }
+.key {
+  display: inline-block;
+  border: 1px solid #33405e;
+  border-radius: 4px;
+  padding: 1px 7px;
+  color: #cfe0ff;
+  background: #161d2c;
+  font-size: 12px;
+}
+.o-start {
+  color: #8ee6a0;
+  font-size: 15px;
+  letter-spacing: .12em;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: .45 } 50% { opacity: 1 } }
+.o-stat { color: #7d8ba8; font-size: 15px; line-height: 2; margin-bottom: 24px; }
+.o-stat span { color: #7cc4ff; font-weight: bold; }
+#go .o-title { color: #ff6b81; text-shadow: 0 0 26px rgba(255, 80, 110, .3); }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="h-item"><span class="h-label">LEVEL</span><span class="h-val" id="hLevel">1</span></div>
+  <div class="h-item"><span class="h-label">DEPORTED</span><span class="h-val" id="hDep">0</span></div>
+  <div class="h-item"><span class="h-label">SCORE</span><span class="h-val" id="hScore">0</span></div>
+  <div class="h-item"><span class="h-label">AGENT</span><span id="hearts">♥♥♥</span></div>
+</div>
+<div id="info">WASD / ARROWS move &nbsp;·&nbsp; MOUSE aim &nbsp;·&nbsp; HOLD CLICK to fire banishment beam &nbsp;·&nbsp; SPACE dash</div>
+
+<div class="overlay show" id="title">
+  <div class="o-title">DEPORTING ARYA</div>
+  <div class="o-sub">// INTERDIMENSIONAL BORDER CONTROL //</div>
+  <div class="o-body">
+    Arya is a dimension-hopping gremlin. Her realm visa expired <b>four hundred years ago</b>
+    and she has been squatting in your sector ever since — raiding the enchanted vending machines,
+    unspooling <b>red tape</b>, and blinking away every time you get close.<br><br>
+    You are a field agent of the <b>Bureau of Interdimensional Affairs</b>. Hold your beam on Arya to drain her <b>VISA</b> meter to zero
+    and a portal will open to take her home.<br><br>
+    <span class="key">WASD</span> move &nbsp; <span class="key">MOUSE</span> aim &nbsp;
+    <span class="key">HOLD CLICK</span> beam &nbsp; <span class="key">SPACE</span> dash<br><br>
+    The beam <b>overheats</b>, so pace it. It's blocked by <b>pillars</b>, so get an angle.
+    From level 3 she deploys <b>decoys</b> — beaming a fake just cooks your emitter.
+  </div>
+  <div class="o-start">CLICK OR PRESS ENTER TO BEGIN</div>
+</div>
+
+<div class="overlay" id="go">
+  <div class="o-title">TOWER OVERRUN</div>
+  <div class="o-sub">// arya has claimed permanent residency //</div>
+  <div class="o-stat">
+    Deported: <span id="goDep">0</span><br>
+    Reached level: <span id="goLevel">1</span><br>
+    Final score: <span id="goScore">0</span>
+  </div>
+  <div class="o-start">CLICK OR PRESS ENTER TO TRY AGAIN</div>
+</div>
+
+<script>
+'use strict';
+
+/* ────────────────────────── canvas ────────────────────────── */
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.floor(W * DPR); cv.height = Math.floor(H * DPR);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+const PAD = 46;                                  // arena wall inset
+const arena = () => ({ x0: PAD, y0: PAD + 46, x1: W - PAD, y1: H - PAD });
+
+/* ────────────────────────── helpers ───────────────────────── */
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const rand = (a, b) => a + Math.random() * (b - a);
+const TAU = Math.PI * 2;
+
+function rayCircle(ox, oy, dx, dy, cx, cy, r) {   // dx,dy unit; nearest t>=0 or Infinity
+  const ex = ox - cx, ey = oy - cy;
+  const b = ex * dx + ey * dy;
+  const c = ex * ex + ey * ey - r * r;
+  if (c > 0 && b > 0) return Infinity;
+  const disc = b * b - c;
+  if (disc < 0) return Infinity;
+  const sq = Math.sqrt(disc);
+  const t0 = -b - sq;
+  if (t0 >= 0) return t0;
+  const t1 = -b + sq;
+  return t1 >= 0 ? t1 : Infinity;
+}
+
+/* ────────────────────────── audio ─────────────────────────── */
+let actx = null, master = null;
+let beamOsc = null, beamGain = null;
+function audioInit() {
+  if (actx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  actx = new AC();
+  master = actx.createGain();
+  master.gain.value = 0.5;
+  master.connect(actx.destination);
+
+  beamOsc = actx.createOscillator();
+  beamOsc.type = 'sawtooth';
+  beamOsc.frequency.value = 82;
+  beamGain = actx.createGain();
+  beamGain.gain.value = 0;
+  const lp = actx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 900;
+  beamOsc.connect(beamGain); beamGain.connect(lp); lp.connect(master);
+  beamOsc.start();
+}
+function blip(freq, dur, type, vol, slideTo) {
+  if (!actx) return;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type || 'square';
+  o.frequency.setValueAtTime(freq, actx.currentTime);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, actx.currentTime + dur);
+  g.gain.setValueAtTime(vol || 0.16, actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0008, actx.currentTime + dur);
+  o.connect(g); g.connect(master);
+  o.start(); o.stop(actx.currentTime + dur + 0.02);
+}
+function setBeamSound(on, heatPct) {
+  if (!beamGain || !actx) return;
+  const t = actx.currentTime;
+  beamGain.gain.setTargetAtTime(on ? 0.08 : 0, t, 0.03);
+  if (on) beamOsc.frequency.setTargetAtTime(78 + heatPct * 60, t, 0.05);
+}
+
+/* ────────────────────────── input ─────────────────────────── */
+const keys = Object.create(null);
+let mx = 0, my = 0, mdown = false;
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space') e.preventDefault();
+  if (e.code === 'Enter' || e.code === 'NumpadEnter') tryStart();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+cv.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+addEventListener('mousedown', e => { if (e.button === 0) { mdown = true; tryStart(); } });
+addEventListener('mouseup', e => { if (e.button === 0) mdown = false; });
+addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('blur', () => { mdown = false; for (const k in keys) keys[k] = false; });
+
+/* ────────────────────────── state ─────────────────────────── */
+let state = 'title';                             // title | play | clear | over
+let level = 1, deported = 0, score = 0;
+let clearT = 0, shake = 0, flash = 0, time = 0;
+
+const player = { x: 0, y: 0, vx: 0, vy: 0, r: 15, hearts: 3, inv: 0, dashCd: 0, dashT: 0, aim: 0 };
+let arya = null;
+let pillars = [], decoys = [], shots = [], parts = [];
+let heat = 0, overheat = false, beamLen = 0, beamOn = false;
+let portal = null;
+
+const PLAYER_SPD = 268, DASH_SPD = 850, DASH_TIME = 0.13, DASH_CD = 1.05;
+const BEAM_RANGE = 620, BEAM_W = 13, DRAIN = 33, HEAT_UP = 40, HEAT_DN = 34;
+
+function cfg(n) {
+  return {
+    speed:     158 + n * 13,
+    blinkEvery: Math.max(1.5, 4.4 - n * 0.24),
+    fireEvery:  Math.max(0.5, 2.1 - n * 0.14),
+    shotSpd:    215 + n * 13,
+    decoys:     n >= 3 ? Math.min(5, Math.floor((n - 1) / 2)) : 0,
+    pillars:    Math.min(8, 3 + Math.floor(n / 2)),
+  };
+}
+
+/* ────────────────────────── spawning ──────────────────────── */
+function farPoint(fromX, fromY, minD, r) {
+  const a = arena();
+  for (let i = 0; i < 300; i++) {
+    const x = rand(a.x0 + r + 10, a.x1 - r - 10);
+    const y = rand(a.y0 + r + 10, a.y1 - r - 10);
+    if (Math.hypot(x - fromX, y - fromY) < minD) continue;
+    let bad = false;
+    for (const p of pillars) if (Math.hypot(x - p.x, y - p.y) < p.r + r + 26) { bad = true; break; }
+    if (!bad) return { x, y };
+  }
+  const a2 = arena();
+  return { x: (a2.x0 + a2.x1) / 2, y: (a2.y0 + a2.y1) / 2 };
+}
+
+function buildLevel() {
+  const c = cfg(level), a = arena();
+  pillars = [];
+  for (let i = 0; i < c.pillars; i++) {
+    for (let t = 0; t < 120; t++) {
+      const r = rand(26, 46);
+      const x = rand(a.x0 + r + 70, a.x1 - r - 70);
+      const y = rand(a.y0 + r + 70, a.y1 - r - 70);
+      if (Math.hypot(x - player.x, y - player.y) < r + 130) continue;
+      let ok = true;
+      for (const p of pillars) if (Math.hypot(x - p.x, y - p.y) < p.r + r + 70) { ok = false; break; }
+      if (ok) { pillars.push({ x, y, r }); break; }
+    }
+  }
+
+  const spot = farPoint(player.x, player.y, Math.min(400, Math.min(W, H) * 0.5), 16);
+  arya = {
+    x: spot.x, y: spot.y, vx: 0, vy: 0, r: 15,
+    visa: 100, blinkT: c.blinkEvery, fireT: c.fireEvery * 0.7,
+    hitT: 0, seed: rand(0, 100), wob: 0, spawnT: 0.5,
+  };
+
+  decoys = []; shots = []; portal = null;
+  for (let i = 0; i < c.decoys; i++) spawnDecoy();
+  heat = 0; overheat = false;
+}
+
+function spawnDecoy() {
+  const s = farPoint(player.x, player.y, 240, 15);
+  decoys.push({ x: s.x, y: s.y, vx: 0, vy: 0, r: 14, pop: 0, seed: rand(0, 100), wob: 0 });
+}
+
+function resetGame() {
+  const a = arena();
+  player.x = (a.x0 + a.x1) / 2; player.y = (a.y0 + a.y1) / 2;
+  player.vx = player.vy = 0; player.hearts = 3; player.inv = 0;
+  player.dashCd = 0; player.dashT = 0;
+  level = 1; deported = 0; score = 0; parts = []; shake = 0; flash = 0;
+  buildLevel();
+}
+
+function tryStart() {
+  if (state === 'title' || state === 'over') {
+    audioInit();
+    if (actx && actx.state === 'suspended') actx.resume();
+    document.getElementById('title').classList.remove('show');
+    document.getElementById('go').classList.remove('show');
+    resetGame();
+    state = 'play';
+    blip(320, 0.14, 'square', 0.14, 640);
+  }
+}
+
+/* ────────────────────────── particles ─────────────────────── */
+function burst(x, y, n, color, spd, size, life) {
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, TAU), s = rand(spd * 0.25, spd);
+    parts.push({
+      x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: rand(life * 0.55, life), max: life,
+      color, size: rand(size * 0.5, size), drag: 2.6,
+    });
+  }
+}
+function vortex(x, y, n) {
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, TAU), d = rand(60, 300);
+    parts.push({
+      x: x + Math.cos(a) * d, y: y + Math.sin(a) * d,
+      vx: 0, vy: 0, life: rand(0.7, 1.5), max: 1.5,
+      color: i % 3 === 0 ? '#8ee6a0' : '#5ad1ff', size: rand(2, 5),
+      pull: { x, y }, drag: 0,
+    });
+  }
+}
+
+/* ────────────────────────── collision ─────────────────────── */
+function collide(e) {
+  const a = arena();
+  e.x = clamp(e.x, a.x0 + e.r, a.x1 - e.r);
+  e.y = clamp(e.y, a.y0 + e.r, a.y1 - e.r);
+  for (const p of pillars) {
+    const dx = e.x - p.x, dy = e.y - p.y;
+    const d = Math.hypot(dx, dy), min = p.r + e.r;
+    if (d < min && d > 0.001) {
+      e.x = p.x + dx / d * min;
+      e.y = p.y + dy / d * min;
+    }
+  }
+}
+
+/* ────────────────────────── update ────────────────────────── */
+function updatePlayer(dt) {
+  let ix = 0, iy = 0;
+  if (keys.KeyA || keys.ArrowLeft)  ix -= 1;
+  if (keys.KeyD || keys.ArrowRight) ix += 1;
+  if (keys.KeyW || keys.ArrowUp)    iy -= 1;
+  if (keys.KeyS || keys.ArrowDown)  iy += 1;
+  const m = Math.hypot(ix, iy);
+  if (m > 0) { ix /= m; iy /= m; }
+
+  player.dashCd = Math.max(0, player.dashCd - dt);
+  if (player.dashT > 0) player.dashT -= dt;
+  if (keys.Space && player.dashCd <= 0 && player.dashT <= 0 && m > 0) {
+    player.dashT = DASH_TIME; player.dashCd = DASH_CD;
+    player.vx = ix * DASH_SPD; player.vy = iy * DASH_SPD;
+    burst(player.x, player.y, 12, '#5ad1ff', 190, 3.4, 0.4);
+    blip(520, 0.1, 'sine', 0.1, 200);
+  }
+
+  if (player.dashT > 0) {
+    burst(player.x, player.y, 2, '#3fa9ff', 40, 2.6, 0.3);
+  } else {
+    const spd = PLAYER_SPD;
+    player.vx += (ix * spd - player.vx) * Math.min(1, dt * 16);
+    player.vy += (iy * spd - player.vy) * Math.min(1, dt * 16);
+  }
+  player.x += player.vx * dt; player.y += player.vy * dt;
+  collide(player);
+  player.aim = Math.atan2(my - player.y, mx - player.x);
+  if (player.inv > 0) player.inv -= dt;
+}
+
+function steer(e, c, fleeMul, dt) {
+  const a = arena();
+  let sx = 0, sy = 0;
+  const dx = e.x - player.x, dy = e.y - player.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const w = clamp(430 / d, 0, 3.4) * fleeMul;
+  sx += dx / d * w; sy += dy / d * w;
+
+  for (const p of pillars) {
+    const px = e.x - p.x, py = e.y - p.y;
+    const pd = Math.hypot(px, py) || 1;
+    const reach = p.r + 74;
+    if (pd < reach) { const f = (reach - pd) / reach * 2.4; sx += px / pd * f; sy += py / pd * f; }
+  }
+  const edge = 96;
+  if (e.x - a.x0 < edge) sx += (edge - (e.x - a.x0)) / edge * 2.2;
+  if (a.x1 - e.x < edge) sx -= (edge - (a.x1 - e.x)) / edge * 2.2;
+  if (e.y - a.y0 < edge) sy += (edge - (e.y - a.y0)) / edge * 2.2;
+  if (a.y1 - e.y < edge) sy -= (edge - (a.y1 - e.y)) / edge * 2.2;
+
+  sx += Math.cos(time * 1.6 + e.seed) * 0.85;
+  sy += Math.sin(time * 2.05 + e.seed * 1.7) * 0.85;
+
+  const sm = Math.hypot(sx, sy);
+  if (sm > 0.001) { sx /= sm; sy /= sm; }
+  e.vx += (sx * c.speed - e.vx) * Math.min(1, dt * 5.5);
+  e.vy += (sy * c.speed - e.vy) * Math.min(1, dt * 5.5);
+  e.x += e.vx * dt; e.y += e.vy * dt;
+  collide(e);
+  e.wob += dt * (3 + Math.hypot(e.vx, e.vy) / 90);
+}
+
+function blinkArya(c) {
+  burst(arya.x, arya.y, 22, '#c17bff', 230, 3.6, 0.5);
+  const dest = farPoint(player.x, player.y, Math.min(330, Math.min(W, H) * 0.42), arya.r);
+  arya.x = dest.x; arya.y = dest.y;
+  arya.vx = arya.vy = 0;
+  arya.blinkT = c.blinkEvery * rand(0.85, 1.25);
+  burst(arya.x, arya.y, 22, '#c17bff', 230, 3.6, 0.5);
+  blip(760, 0.13, 'sine', 0.11, 240);
+}
+
+function updateArya(dt, c) {
+  if (arya.spawnT > 0) { arya.spawnT -= dt; return; }
+  steer(arya, c, 1, dt);
+  if (arya.hitT > 0) arya.hitT -= dt;
+
+  // panic-blink faster while being drained
+  arya.blinkT -= dt * (arya.hitT > 0 ? 2.8 : 1);
+  if (arya.blinkT <= 0) blinkArya(c);
+
+  arya.fireT -= dt;
+  if (arya.fireT <= 0) {
+    arya.fireT = c.fireEvery * rand(0.8, 1.25);
+    const ang = Math.atan2(player.y - arya.y, player.x - arya.x) + rand(-0.12, 0.12);
+    shots.push({
+      x: arya.x, y: arya.y,
+      vx: Math.cos(ang) * c.shotSpd, vy: Math.sin(ang) * c.shotSpd,
+      r: 7, life: 4, spin: rand(0, TAU),
+    });
+    blip(180, 0.1, 'sawtooth', 0.07, 110);
+  }
+}
+
+function updateShots(dt) {
+  for (let i = shots.length - 1; i >= 0; i--) {
+    const s = shots[i];
+    s.x += s.vx * dt; s.y += s.vy * dt;
+    s.life -= dt; s.spin += dt * 9;
+    const a = arena();
+    let dead = s.life <= 0 || s.x < a.x0 - 30 || s.x > a.x1 + 30 || s.y < a.y0 - 30 || s.y > a.y1 + 30;
+    if (!dead) for (const p of pillars) {
+      if (Math.hypot(s.x - p.x, s.y - p.y) < p.r + s.r) {
+        burst(s.x, s.y, 7, '#ff9f6b', 110, 2.6, 0.35); dead = true; break;
+      }
+    }
+    if (!dead && player.inv <= 0 && Math.hypot(s.x - player.x, s.y - player.y) < player.r + s.r) {
+      dead = true;
+      player.hearts--; player.inv = 1.5; shake = 15; flash = 0.5;
+      burst(player.x, player.y, 26, '#ff5f7e', 250, 4, 0.6);
+      blip(150, 0.3, 'square', 0.2, 60);
+      if (player.hearts <= 0) endGame();
+    }
+    if (dead) shots.splice(i, 1);
+  }
+}
+
+function updateBeam(dt, c) {
+  beamOn = false;
+  if (overheat) { heat -= HEAT_DN * 1.15 * dt; if (heat <= 26) overheat = false; }
+  else if (mdown && state === 'play') {
+    beamOn = true;
+    heat += HEAT_UP * dt;
+    if (heat >= 100) { heat = 100; overheat = true; blip(120, 0.4, 'sawtooth', 0.18, 55); }
+  } else heat -= HEAT_DN * dt;
+  heat = clamp(heat, 0, 100);
+  setBeamSound(beamOn, heat / 100);
+
+  if (!beamOn) { beamLen = 0; return; }
+
+  const dx = Math.cos(player.aim), dy = Math.sin(player.aim);
+  const ox = player.x + dx * (player.r + 8), oy = player.y + dy * (player.r + 8);
+
+  // clip on walls
+  let len = BEAM_RANGE;
+  const a = arena();
+  if (dx > 0.0001) len = Math.min(len, (a.x1 - ox) / dx);
+  if (dx < -0.0001) len = Math.min(len, (a.x0 - ox) / dx);
+  if (dy > 0.0001) len = Math.min(len, (a.y1 - oy) / dy);
+  if (dy < -0.0001) len = Math.min(len, (a.y0 - oy) / dy);
+  // clip on pillars
+  for (const p of pillars) len = Math.min(len, rayCircle(ox, oy, dx, dy, p.x, p.y, p.r));
+  beamLen = Math.max(0, len);
+
+  // decoys first (they soak the shot)
+  for (let i = decoys.length - 1; i >= 0; i--) {
+    const d = decoys[i];
+    if (rayCircle(ox, oy, dx, dy, d.x, d.y, d.r + BEAM_W * 0.5) <= beamLen) {
+      d.pop += dt;
+      burst(d.x, d.y, 1, '#ffd166', 80, 2.4, 0.3);
+      if (d.pop > 0.42) {
+        burst(d.x, d.y, 30, '#ffd166', 260, 4, 0.6);
+        decoys.splice(i, 1);
+        heat = Math.min(100, heat + 22);
+        shake = 8;
+        blip(240, 0.25, 'square', 0.14, 90);
+        setTimeout(() => { if (state === 'play') spawnDecoy(); }, 2200);
+      }
+    } else d.pop = Math.max(0, d.pop - dt * 1.5);
+  }
+
+  if (arya.spawnT <= 0 &&
+      rayCircle(ox, oy, dx, dy, arya.x, arya.y, arya.r + BEAM_W * 0.5) <= beamLen) {
+    arya.visa -= DRAIN * dt;
+    arya.hitT = 0.14;
+    burst(arya.x, arya.y, 2, '#8ee6a0', 130, 2.8, 0.35);
+    shake = Math.max(shake, 3);
+    if (arya.visa <= 0) { arya.visa = 0; banish(); }
+  }
+}
+
+function banish() {
+  state = 'clear';
+  clearT = 1.9;
+  portal = { x: arya.x, y: arya.y, t: 0 };
+  vortex(arya.x, arya.y, 90);
+  for (const d of decoys) burst(d.x, d.y, 14, '#ffd166', 200, 3.4, 0.5);
+  decoys = [];
+  shots = [];
+  shake = 20;
+  mdown = false;
+  setBeamSound(false, 0);
+  deported++;
+  score += 500 + level * 150 + player.hearts * 120;
+  blip(300, 0.5, 'sine', 0.2, 1200);
+  setTimeout(() => blip(600, 0.4, 'sine', 0.16, 1600), 130);
+}
+
+function endGame() {
+  state = 'over';
+  mdown = false;
+  setBeamSound(false, 0);
+  burst(player.x, player.y, 60, '#ff5f7e', 340, 5, 1);
+  document.getElementById('goDep').textContent = deported;
+  document.getElementById('goLevel').textContent = level;
+  document.getElementById('goScore').textContent = score;
+  setTimeout(() => document.getElementById('go').classList.add('show'), 750);
+}
+
+function updateParts(dt) {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    if (p.pull) {
+      const dx = p.pull.x - p.x, dy = p.pull.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      p.vx += (dx / d) * 900 * dt - dy / d * 260 * dt;
+      p.vy += (dy / d) * 900 * dt + dx / d * 260 * dt;
+    } else {
+      p.vx -= p.vx * p.drag * dt;
+      p.vy -= p.vy * p.drag * dt;
+    }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.life -= dt;
+    if (p.life <= 0) parts.splice(i, 1);
+  }
+}
+
+function update(dt) {
+  time += dt;
+  shake = Math.max(0, shake - dt * 60);
+  flash = Math.max(0, flash - dt * 2.2);
+  updateParts(dt);
+
+  if (state === 'play') {
+    const c = cfg(level);
+    updatePlayer(dt);
+    updateArya(dt, c);
+    for (const d of decoys) steer(d, { speed: c.speed * 0.82 }, 0.8, dt);
+    updateShots(dt);
+    updateBeam(dt, c);
+    score += dt * 6;
+  } else if (state === 'clear') {
+    updatePlayer(dt);
+    updateShots(dt);
+    portal.t += dt;
+    if (portal.t < 1.1) vortex(portal.x, portal.y, 3);
+    clearT -= dt;
+    if (clearT <= 0) { level++; buildLevel(); state = 'play'; }
+  } else if (state === 'title' || state === 'over') {
+    setBeamSound(false, 0);
+  }
+
+  document.getElementById('hLevel').textContent = level;
+  document.getElementById('hDep').textContent = deported;
+  document.getElementById('hScore').textContent = Math.floor(score);
+  const hp = Math.max(0, player.hearts);
+  document.getElementById('hearts').textContent = '♥'.repeat(hp) + '·'.repeat(3 - hp);
+}
+
+/* ────────────────────────── drawing ───────────────────────── */
+function drawBg() {
+  const a = arena();
+  ctx.fillStyle = '#07090e';
+  ctx.fillRect(0, 0, W, H);
+
+  const g = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, Math.max(W, H) * 0.75);
+  g.addColorStop(0, 'rgba(30,45,80,0.35)');
+  g.addColorStop(1, 'rgba(5,7,12,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(70,95,150,0.10)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = a.x0; x < a.x1; x += 46) { ctx.moveTo(x, a.y0); ctx.lineTo(x, a.y1); }
+  for (let y = a.y0; y < a.y1; y += 46) { ctx.moveTo(a.x0, y); ctx.lineTo(a.x1, y); }
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.strokeStyle = '#2b3957';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(a.x0, a.y0, a.x1 - a.x0, a.y1 - a.y0);
+}
+
+function drawPillars() {
+  for (const p of pillars) {
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU);
+    ctx.fillStyle = '#1b2336';
+    ctx.fill();
+    ctx.strokeStyle = '#38466b'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 0.55, 0, TAU);
+    ctx.strokeStyle = 'rgba(90,120,180,0.28)'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+}
+
+function drawGremlin(e, isReal) {
+  const wob = Math.sin(e.wob) * 2.2;
+  const r = e.r;
+  ctx.save();
+  ctx.translate(e.x, e.y + wob);
+
+  const hot = isReal && e.hitT > 0;
+  const body = isReal ? (hot ? '#b6ffcb' : '#7ee39a') : '#e8c065';
+  const dark = isReal ? '#2c7a4b' : '#8a6a1e';
+
+  ctx.globalAlpha = isReal ? 1 : 0.82;
+
+  // glow
+  ctx.beginPath(); ctx.arc(0, 0, r * 2.1, 0, TAU);
+  const g = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 2.1);
+  g.addColorStop(0, isReal ? 'rgba(120,230,160,0.30)' : 'rgba(230,190,90,0.22)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fill();
+
+  // ears
+  ctx.fillStyle = dark;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.72, -r * 0.42); ctx.lineTo(-r * 1.6, -r * 1.5); ctx.lineTo(-r * 0.14, -r * 0.92);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(r * 0.72, -r * 0.42); ctx.lineTo(r * 1.6, -r * 1.5); ctx.lineTo(r * 0.14, -r * 0.92);
+  ctx.closePath(); ctx.fill();
+
+  // body
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU);
+  ctx.fillStyle = body; ctx.fill();
+  ctx.strokeStyle = dark; ctx.lineWidth = 2; ctx.stroke();
+
+  // eyes
+  const look = Math.atan2(player.y - e.y, player.x - e.x);
+  const ex = Math.cos(look) * 2.2, ey = Math.sin(look) * 2.2;
+  ctx.fillStyle = '#0d1117';
+  ctx.beginPath(); ctx.arc(-r * 0.34 + ex, -r * 0.1 + ey, r * 0.2, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(r * 0.34 + ex, -r * 0.1 + ey, r * 0.2, 0, TAU); ctx.fill();
+  // grin
+  ctx.strokeStyle = '#0d1117'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(0, r * 0.18, r * 0.42, 0.18 * Math.PI, 0.82 * Math.PI); ctx.stroke();
+
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  if (isReal) {
+    // visa meter above head
+    const bw = 46, bh = 5, bx = e.x - bw / 2, by = e.y - r - 24;
+    ctx.fillStyle = 'rgba(8,12,20,0.85)';
+    ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+    const pct = e.visa / 100;
+    ctx.fillStyle = pct > 0.5 ? '#ff6b81' : pct > 0.22 ? '#ffb347' : '#8ee6a0';
+    ctx.fillRect(bx, by, bw * pct, bh);
+    ctx.strokeStyle = '#39465f'; ctx.lineWidth = 1;
+    ctx.strokeRect(bx - 1.5, by - 1.5, bw + 3, bh + 3);
+  } else if (e.pop > 0) {
+    ctx.strokeStyle = 'rgba(255,209,102,0.9)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 7, -Math.PI / 2, -Math.PI / 2 + TAU * (e.pop / 0.42));
+    ctx.stroke();
+  }
+}
+
+function roundRect(c, x, y, w, h, r) {
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r);
+  c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  c.lineTo(x + r, y + h); c.quadraticCurveTo(x, y + h, x, y + h - r);
+  c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y);
+  c.closePath();
+}
+
+function drawPlayer() {
+  const blink = player.inv > 0 && Math.floor(time * 14) % 2 === 0;
+  const moving = Math.hypot(player.vx, player.vy) > 40;
+  const walk = moving ? Math.sin(time * 15) * 1.8 : 0;
+  const r = player.r;
+
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.globalAlpha = blink ? 0.35 : 1;
+
+  // ground glow
+  ctx.beginPath(); ctx.arc(0, 0, r * 2.4, 0, TAU);
+  const g = ctx.createRadialGradient(0, 0, 3, 0, 0, r * 2.4);
+  g.addColorStop(0, 'rgba(232,185,63,0.20)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fill();
+
+  ctx.rotate(player.aim);
+
+  // boots
+  ctx.fillStyle = '#0b0f16';
+  ctx.beginPath(); ctx.ellipse(-r * 0.2, -r * 0.66 + walk, r * 0.44, r * 0.3, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-r * 0.2,  r * 0.66 - walk, r * 0.44, r * 0.3, 0, 0, TAU); ctx.fill();
+
+  // arms bracing the emitter
+  ctx.strokeStyle = '#1e2532'; ctx.lineWidth = r * 0.36; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(r * 0.1, -r * 0.52); ctx.lineTo(r * 0.96, -r * 0.17); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(r * 0.1,  r * 0.52); ctx.lineTo(r * 0.96,  r * 0.17); ctx.stroke();
+
+  // emitter device
+  ctx.fillStyle = '#39445c';
+  ctx.fillRect(r * 0.7, -r * 0.32, r * 0.66, r * 0.64);
+  ctx.fillStyle = '#222a3a';
+  ctx.fillRect(r * 0.7, -r * 0.32, r * 0.2, r * 0.64);
+  ctx.fillStyle = overheat ? '#ff6b81' : '#a8e9ff';
+  ctx.fillRect(r * 1.32, -r * 0.17, r * 0.22, r * 0.34);
+
+  // windbreaker / torso
+  ctx.beginPath();
+  roundRect(ctx, -r * 0.8, -r * 0.88, r * 1.62, r * 1.76, r * 0.45);
+  ctx.fillStyle = '#161c27'; ctx.fill();
+  ctx.strokeStyle = '#303b50'; ctx.lineWidth = 1.8; ctx.stroke();
+
+  // tactical vest panel
+  ctx.beginPath();
+  roundRect(ctx, -r * 0.52, -r * 0.68, r * 0.95, r * 1.36, r * 0.2);
+  ctx.fillStyle = '#242d3d'; ctx.fill();
+  ctx.strokeStyle = '#161c26'; ctx.lineWidth = 1.2; ctx.stroke();
+
+  // vest pouches
+  ctx.fillStyle = '#141a24';
+  ctx.fillRect(-r * 0.36, -r * 0.52, r * 0.32, r * 0.36);
+  ctx.fillRect(-r * 0.36,  r * 0.16, r * 0.32, r * 0.36);
+
+  // shoulder badge
+  ctx.fillStyle = '#e8b93f';
+  ctx.beginPath(); ctx.arc(r * 0.2, -r * 0.46, r * 0.16, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#8a6a1e';
+  ctx.beginPath(); ctx.arc(r * 0.2, -r * 0.46, r * 0.07, 0, TAU); ctx.fill();
+
+  // radio antenna
+  ctx.strokeStyle = '#4a5670'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(-r * 0.52, r * 0.62); ctx.lineTo(-r * 1.0, r * 1.0); ctx.stroke();
+
+  // head with cap
+  ctx.beginPath(); ctx.arc(0, 0, r * 0.54, 0, TAU);
+  ctx.fillStyle = '#0f141c'; ctx.fill();
+  ctx.strokeStyle = '#2b3547'; ctx.lineWidth = 1.4; ctx.stroke();
+  // cap brim
+  ctx.beginPath(); ctx.ellipse(r * 0.42, 0, r * 0.3, r * 0.44, 0, 0, TAU);
+  ctx.fillStyle = '#090d13'; ctx.fill();
+  // sunglasses
+  ctx.fillStyle = '#04060a';
+  ctx.fillRect(r * 0.18, -r * 0.36, r * 0.18, r * 0.72);
+  // cap insignia
+  ctx.fillStyle = '#e8b93f';
+  ctx.beginPath(); ctx.arc(-r * 0.06, 0, r * 0.13, 0, TAU); ctx.fill();
+
+  // agency lettering, counter-rotated so it always reads level
+  ctx.save();
+  ctx.rotate(-player.aim);
+  ctx.font = 'bold ' + (r * 0.52).toFixed(1) + 'px "Courier New", monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(232,185,63,0.92)';
+  ctx.fillText('B.I.A.', 0, r * 1.75);
+  ctx.restore();
+
+  ctx.restore();
+}
+
+function drawBeam() {
+  if (!beamOn || beamLen <= 0) return;
+  const dx = Math.cos(player.aim), dy = Math.sin(player.aim);
+  const ox = player.x + dx * (player.r + 8), oy = player.y + dy * (player.r + 8);
+  const ex = ox + dx * beamLen, ey = oy + dy * beamLen;
+  const flick = 0.82 + Math.sin(time * 60) * 0.18;
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = 'rgba(80, 220, 140, ' + (0.13 * flick) + ')';
+  ctx.lineWidth = BEAM_W * 2.6;
+  ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ex, ey); ctx.stroke();
+  ctx.strokeStyle = 'rgba(120, 245, 170, ' + (0.5 * flick) + ')';
+  ctx.lineWidth = BEAM_W;
+  ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ex, ey); ctx.stroke();
+  ctx.strokeStyle = 'rgba(235, 255, 245, ' + (0.95 * flick) + ')';
+  ctx.lineWidth = BEAM_W * 0.34;
+  ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ex, ey); ctx.stroke();
+
+  ctx.beginPath(); ctx.arc(ex, ey, 9 * flick, 0, TAU);
+  ctx.fillStyle = 'rgba(150,255,190,0.5)'; ctx.fill();
+  ctx.restore();
+}
+
+function drawShots() {
+  for (const s of shots) {
+    ctx.save();
+    ctx.translate(s.x, s.y); ctx.rotate(s.spin);
+    ctx.beginPath(); ctx.arc(0, 0, s.r + 5, 0, TAU);
+    ctx.fillStyle = 'rgba(255,120,90,0.20)'; ctx.fill();
+    ctx.fillStyle = '#ff8a5c';
+    ctx.fillRect(-s.r, -s.r * 0.5, s.r * 2, s.r);
+    ctx.fillStyle = '#ffd9c2';
+    ctx.fillRect(-s.r * 0.6, -s.r * 0.18, s.r * 1.2, s.r * 0.36);
+    ctx.restore();
+  }
+}
+
+function drawPortal() {
+  if (!portal) return;
+  const t = portal.t;
+  const grow = Math.min(1, t / 0.5), fade = clamp(1 - (t - 1.2) / 0.7, 0, 1);
+  const R = 64 * grow * fade;
+  if (R <= 0.5) return;
+  ctx.save();
+  ctx.translate(portal.x, portal.y);
+  ctx.rotate(t * 3);
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.arc(0, 0, R * (1 - i * 0.19), i * 1.3, i * 1.3 + 4.4);
+    ctx.strokeStyle = i % 2 ? 'rgba(140,230,160,' + (0.7 * fade) + ')'
+                            : 'rgba(90,209,255,' + (0.7 * fade) + ')';
+    ctx.lineWidth = 5 - i * 0.7;
+    ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(0, 0, R * 0.5, 0, TAU);
+  const g = ctx.createRadialGradient(0, 0, 1, 0, 0, R * 0.5);
+  g.addColorStop(0, 'rgba(255,255,255,' + (0.9 * fade) + ')');
+  g.addColorStop(1, 'rgba(60,180,255,0)');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.restore();
+}
+
+function drawParts() {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of parts) {
+    ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function drawHeat() {
+  const bw = 190, bh = 8;
+  const bx = W / 2 - bw / 2, by = H - 42;
+  ctx.fillStyle = 'rgba(10,14,22,0.85)';
+  ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
+  const pct = heat / 100;
+  ctx.fillStyle = overheat ? '#ff5f7e' : pct > 0.72 ? '#ffb347' : '#5ad1ff';
+  ctx.fillRect(bx, by, bw * pct, bh);
+  ctx.strokeStyle = '#2b3957'; ctx.lineWidth = 1;
+  ctx.strokeRect(bx - 2.5, by - 2.5, bw + 5, bh + 5);
+  ctx.font = '10px "Courier New", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = overheat ? '#ff5f7e' : '#5d6a86';
+  ctx.fillText(overheat ? 'EMITTER OVERHEATED — VENTING' : 'EMITTER HEAT', W / 2, by - 8);
+
+  // dash cooldown pip
+  ctx.textAlign = 'left';
+  ctx.fillStyle = player.dashCd > 0 ? '#3d4861' : '#5ad1ff';
+  ctx.fillText(player.dashCd > 0 ? 'DASH ···' : 'DASH RDY', bx + bw + 16, by + 8);
+}
+
+function drawClearBanner() {
+  if (state !== 'clear') return;
+  const k = clamp(clearT / 1.9, 0, 1);
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, k * 2.2);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 40px "Courier New", monospace';
+  ctx.fillStyle = '#8ee6a0';
+  ctx.fillText('DEPORTED', W / 2, H / 2 - 34);
+  ctx.font = '14px "Courier New", monospace';
+  ctx.fillStyle = '#7d8ba8';
+  ctx.fillText('she will be back · level ' + (level + 1) + ' incoming', W / 2, H / 2 + 2);
+  ctx.restore();
+}
+
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.save();
+  if (shake > 0.2) ctx.translate(rand(-shake, shake) * 0.5, rand(-shake, shake) * 0.5);
+
+  drawBg();
+  drawPillars();
+  drawPortal();
+  drawParts();
+  drawShots();
+  if (state !== 'title') {
+    for (const d of decoys) drawGremlin(d, false);
+    if (arya && state === 'play' && arya.spawnT <= 0) drawGremlin(arya, true);
+    drawBeam();
+    drawPlayer();
+  }
+  ctx.restore();
+
+  if (state === 'play' || state === 'clear') drawHeat();
+  drawClearBanner();
+
+  if (flash > 0) {
+    ctx.fillStyle = 'rgba(255,70,100,' + (flash * 0.3) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+/* ────────────────────────── loop ──────────────────────────── */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+resetGame();
+state = 'title';
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
