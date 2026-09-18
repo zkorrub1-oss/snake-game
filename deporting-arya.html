@@ -142,6 +142,7 @@ canvas { display: block; cursor: crosshair; }
 .node.afford .n-cost { color: #ffd166; }
 .n-desc { font-size: 10.5px; color: #7d8ba8; line-height: 1.5; margin-top: 4px; }
 .n-req { font-size: 10px; color: #ff8a5c; margin-top: 3px; }
+.n-count { font-size: 10px; color: var(--c); letter-spacing: .1em; margin-top: 6px; font-weight: bold; }
 .pips { display: flex; gap: 3px; margin-top: 6px; }
 .pip { width: 100%; height: 3px; border-radius: 2px; background: #232c42; }
 .pip.on { background: var(--c); }
@@ -300,7 +301,12 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 cv.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
-addEventListener('mousedown', e => { if (e.button === 0) { mdown = true; tryStart(); } });
+addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  mdown = true;
+  tryStart();
+  tryPlaceTrap();
+});
 addEventListener('mouseup', e => { if (e.button === 0) mdown = false; });
 addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('blur', () => { mdown = false; for (const k in keys) keys[k] = false; });
@@ -362,9 +368,14 @@ const SKILLS = [
     desc: () => 'tagged visa keeps draining for 1.2s after you break the beam' },
   { id: 'over',    b: 'bureau', name: 'Overtime Pay', max: 2, cost: 1, req: ['jam', 1],
     desc: r => '+' + (25 * r) + '% score from every source' },
+  { id: 'trap',    b: 'bureau', name: 'Containment Box', max: Infinity, cost: 5, repeat: true,
+    desc: () => 'buy one, place it anywhere in the arena. Arya loses 30% of her visa every time she walks onto it. Breaks after 10 triggers.' },
 ];
 const SKILL_BY_ID = Object.create(null);
 for (const s of SKILLS) SKILL_BY_ID[s.id] = s;
+
+const TRAP_H = 15, TRAP_USES = 10, TRAP_DMG = 0.30;
+let traps = [], pendingTraps = 0;
 
 let sk = Object.create(null), points = 0, skillsReturn = 'play';
 let M = {};
@@ -406,6 +417,7 @@ function buySkill(id) {
   sk[id] = rank(id) + 1;
   recalc();
   if (id === 'vest') player.hearts = Math.min(M.maxHearts, player.hearts + 1);
+  if (id === 'trap') pendingTraps++;          // placed once you leave the tree
   blip(520, 0.12, 'square', 0.13, 900);
   renderSkills();
 }
@@ -418,16 +430,22 @@ function renderSkills() {
     html += '<div class="branch" style="--c:' + b.color + '"><div class="b-name">' + b.name + '</div>';
     for (const s of SKILLS) {
       if (s.b !== b.id) continue;
-      const r = rank(s.id), maxed = r >= s.max, locked = !reqMet(s);
+      const r = rank(s.id), maxed = !s.repeat && r >= s.max, locked = !reqMet(s);
       const cls = maxed ? 'maxed' : locked ? 'locked' : canBuy(s) ? 'afford' : '';
-      let pips = '';
-      for (let i = 0; i < s.max; i++) pips += '<div class="pip' + (i < r ? ' on' : '') + '"></div>';
+      let tail;
+      if (s.repeat) {
+        tail = r ? '<div class="n-count">BOUGHT &times;' + r + '</div>' : '';
+      } else {
+        let pips = '';
+        for (let i = 0; i < s.max; i++) pips += '<div class="pip' + (i < r ? ' on' : '') + '"></div>';
+        tail = '<div class="pips">' + pips + '</div>';
+      }
       html += '<div class="node ' + cls + '" data-id="' + s.id + '">' +
         '<div class="n-top"><span class="n-name">' + s.name + '</span>' +
         '<span class="n-cost">' + (maxed ? 'MAX' : s.cost + ' SP') + '</span></div>' +
         '<div class="n-desc">' + s.desc(maxed ? s.max : r + 1) + '</div>' +
         (locked ? '<div class="n-req">needs ' + SKILL_BY_ID[s.req[0]].name + ' ' + s.req[1] + '</div>' : '') +
-        '<div class="pips">' + pips + '</div></div>';
+        tail + '</div>';
     }
     html += '</div>';
   }
@@ -454,7 +472,61 @@ function closeSkills() {
   document.getElementById('skills').classList.remove('show');
   mdown = false;
   if (skillsReturn === 'next') buildLevel();
-  state = 'play';
+  state = pendingTraps > 0 ? 'placing' : 'play';
+}
+
+/* ────────────────────────── traps ─────────────────────────── */
+function circleBox(cx, cy, r, bx, by, h) {
+  const nx = clamp(cx, bx - h, bx + h), ny = clamp(cy, by - h, by + h);
+  return Math.hypot(cx - nx, cy - ny) < r;
+}
+
+function trapValid(x, y) {
+  const a = arena(), m = TRAP_H + 6;
+  if (x < a.x0 + m || x > a.x1 - m || y < a.y0 + m || y > a.y1 - m) return false;
+  for (const p of pillars) if (Math.hypot(x - p.x, y - p.y) < p.r + TRAP_H * 1.5) return false;
+  for (const t of traps) if (Math.abs(x - t.x) < TRAP_H * 2.4 && Math.abs(y - t.y) < TRAP_H * 2.4) return false;
+  return true;
+}
+
+function tryPlaceTrap() {
+  if (state !== 'placing' || pendingTraps <= 0) return;
+  if (!trapValid(mx, my)) { blip(130, 0.12, 'square', 0.09, 90); shake = Math.max(shake, 3); return; }
+  traps.push({ x: mx, y: my, uses: TRAP_USES, inside: false, cool: 0, t: rand(0, 6), hit: 0 });
+  pendingTraps--;
+  burst(mx, my, 18, '#ffd166', 160, 3.2, 0.5);
+  blip(420, 0.16, 'square', 0.13, 760);
+  mdown = false;
+  if (pendingTraps <= 0) state = 'play';
+}
+
+function updateTraps(dt) {
+  for (let i = traps.length - 1; i >= 0; i--) {
+    const t = traps[i];
+    t.t += dt;
+    if (t.cool > 0) t.cool -= dt;
+    if (t.hit > 0) t.hit -= dt;
+    if (!arya || arya.spawnT > 0) continue;
+
+    const on = circleBox(arya.x, arya.y, arya.r, t.x, t.y, TRAP_H);
+    if (!on) { t.inside = false; continue; }
+    if (t.inside || t.cool > 0) continue;
+
+    t.inside = true; t.cool = 0.3; t.hit = 0.3;
+    t.uses--;
+    arya.visa -= M.visaMax * TRAP_DMG;
+    arya.hitT = 0.2;
+    burst(t.x, t.y, 24, '#ffd166', 230, 3.6, 0.55);
+    burst(arya.x, arya.y, 18, '#8ee6a0', 200, 3.2, 0.5);
+    shake = Math.max(shake, 11);
+    blip(300, 0.2, 'square', 0.16, 120);
+    if (t.uses <= 0) {
+      burst(t.x, t.y, 32, '#ff8a5c', 250, 4, 0.7);
+      blip(170, 0.3, 'sawtooth', 0.13, 70);
+      traps.splice(i, 1);
+    }
+    if (arya.visa <= 0) { arya.visa = 0; banish(); return; }
+  }
 }
 
 
@@ -495,6 +567,7 @@ function buildLevel() {
       if (Math.hypot(x - player.x, y - player.y) < r + 130) continue;
       let ok = true;
       for (const p of pillars) if (Math.hypot(x - p.x, y - p.y) < p.r + r + 70) { ok = false; break; }
+      if (ok) for (const tp of traps) if (Math.hypot(x - tp.x, y - tp.y) < r + TRAP_H * 2.6) { ok = false; break; }
       if (ok) { pillars.push({ x, y, r }); break; }
     }
   }
@@ -519,7 +592,7 @@ function spawnDecoy() {
 function resetGame() {
   const a = arena();
   player.x = (a.x0 + a.x1) / 2; player.y = (a.y0 + a.y1) / 2;
-  sk = Object.create(null); points = 0; recalc();
+  sk = Object.create(null); points = 0; traps = []; pendingTraps = 0; recalc();
   player.vx = player.vy = 0; player.hearts = M.maxHearts; player.inv = 0;
   player.dashCd = 0; player.dashT = 0;
   level = 1; deported = 0; score = 0; parts = []; shake = 0; flash = 0;
@@ -819,6 +892,7 @@ function update(dt) {
     for (const d of decoys) steer(d, { speed: c.speed * 0.82 }, 0.8, dt);
     updateShots(dt);
     updateBeam(dt, c);
+    updateTraps(dt);
     score += dt * 6 * M.scoreMul;
   } else if (state === 'clear') {
     updatePlayer(dt);
@@ -827,7 +901,7 @@ function update(dt) {
     if (portal.t < 1.1) vortex(portal.x, portal.y, 3);
     clearT -= dt;
     if (clearT <= 0) { level++; openSkills('next'); }
-  } else if (state === 'title' || state === 'over' || state === 'skills') {
+  } else if (state === 'title' || state === 'over' || state === 'skills' || state === 'placing') {
     setBeamSound(false, 0);
   }
 
@@ -1067,6 +1141,75 @@ function drawBeam() {
   ctx.restore();
 }
 
+function drawTrap(x, y, uses, t, hit) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  const g = ctx.createRadialGradient(0, 0, 2, 0, 0, TRAP_H * 2.2);
+  g.addColorStop(0, 'rgba(255,209,102,' + (0.13 + 0.3 * hit) + ')');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.beginPath(); ctx.arc(0, 0, TRAP_H * 2.2, 0, TAU);
+  ctx.fillStyle = g; ctx.fill();
+
+  const pulse = 0.6 + Math.sin(t * 3.4) * 0.25;
+  ctx.beginPath(); roundRect(ctx, -TRAP_H, -TRAP_H, TRAP_H * 2, TRAP_H * 2, 4);
+  ctx.fillStyle = hit > 0 ? '#4a3a12' : '#1d2333'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,209,102,' + clamp(0.45 + 0.4 * pulse + hit, 0, 1) + ')';
+  ctx.lineWidth = 2; ctx.stroke();
+
+  // hazard chevrons
+  ctx.save();
+  ctx.beginPath(); roundRect(ctx, -TRAP_H, -TRAP_H, TRAP_H * 2, TRAP_H * 2, 4); ctx.clip();
+  ctx.strokeStyle = 'rgba(255,209,102,0.16)'; ctx.lineWidth = 3;
+  for (let i = -3; i <= 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * 9 - TRAP_H, TRAP_H); ctx.lineTo(i * 9 + TRAP_H, -TRAP_H);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // remaining charges
+  ctx.font = 'bold 12px "Courier New", monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = hit > 0 ? '#fff3d0' : 'rgba(255,209,102,0.95)';
+  ctx.fillText(uses, 0, 0.5);
+  ctx.restore();
+}
+
+function drawTraps() {
+  for (const t of traps) drawTrap(t.x, t.y, t.uses, t.t, t.hit > 0 ? t.hit / 0.3 : 0);
+}
+
+function drawPlacing() {
+  if (state !== 'placing') return;
+  const ok = trapValid(mx, my);
+
+  ctx.save();
+  ctx.globalAlpha = 0.85;
+  if (ok) {
+    drawTrap(mx, my, TRAP_USES, time, 0);
+  } else {
+    ctx.strokeStyle = '#ff6b81'; ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); roundRect(ctx, mx - TRAP_H, my - TRAP_H, TRAP_H * 2, TRAP_H * 2, 4);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+
+  const y = arena().y0 + 30;
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 15px "Courier New", monospace';
+  ctx.fillStyle = ok ? '#ffd166' : '#ff6b81';
+  ctx.fillText(ok ? 'CLICK TO DEPLOY CONTAINMENT BOX' : 'BLOCKED — PICK OPEN FLOOR', W / 2, y);
+  ctx.font = '11px "Courier New", monospace';
+  ctx.fillStyle = '#7d8ba8';
+  ctx.fillText('30% visa per trigger · ' + TRAP_USES + ' triggers · ' +
+    pendingTraps + ' box' + (pendingTraps === 1 ? '' : 'es') + ' left to place', W / 2, y + 18);
+  ctx.restore();
+}
+
 function drawShots() {
   for (const s of shots) {
     ctx.save();
@@ -1162,6 +1305,7 @@ function draw() {
   drawBg();
   drawPillars();
   drawPortal();
+  if (state !== 'title') drawTraps();
   drawParts();
   drawShots();
   if (state !== 'title') {
@@ -1169,10 +1313,11 @@ function draw() {
     if (arya && state === 'play' && arya.spawnT <= 0) drawGremlin(arya, true);
     drawBeam();
     drawPlayer();
+    drawPlacing();
   }
   ctx.restore();
 
-  if (state === 'play' || state === 'clear') drawHeat();
+  if (state === 'play' || state === 'clear' || state === 'placing') drawHeat();
   drawClearBanner();
 
   if (flash > 0) {
